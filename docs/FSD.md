@@ -422,7 +422,7 @@ for 16 LEDs on GPIO 38, RGB colour order.
 
 **IR-3.1** — Frequency: 2400.0 MHz  
 **IR-3.2** — Modulation: LoRa  
-**IR-3.3** — Bandwidth: 1600 kHz  
+**IR-3.3** — Bandwidth: 1625 kHz  
 **IR-3.4** — Spreading Factor: 6  
 **IR-3.5** — Coding Rate: 4/5 (RadioLib default)  
 **IR-3.6** — Sync Address: 0x12345678 (32-bit, must match on both pucks)  
