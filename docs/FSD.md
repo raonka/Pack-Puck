@@ -166,6 +166,9 @@ shows blocking behaviour problems.
 - `radio.cpp` — Wraps RadioLib SX1280 ranging
 - `led.cpp` — Wraps FastLED WS2812B control
 - `pack_pucks.ino` — Main loop, mode logic, glue
+- `display.cpp` — Wraps SSD1306 OLED output. Active only when `ENABLE_DISPLAY` 
+  is defined. Data collection tool only — excluded from demo builds.
+  OLED pins: SDA=17, SCL=18 (onboard, internal I2C bus).
 
 ### 6.3 Initiator vs Responder
 The two pucks run different firmware variants. Hardware is identical.
@@ -620,8 +623,8 @@ Documented to preserve project direction. **Not implemented for June 15.**
   charge/discharge circuit.
 - **Mesh expansion**: Support for 3+ pucks via time-multiplexed ranging.
 - **Adaptive thresholds**: Distance thresholds adapt to group velocity.
-- **OLED debug display**: Use T3-S3 onboard OLED for live distance readout
-  during development.
+- **OLED debug display**: Implemented in Phase 4.5 as a data-collection tool
+  only, gated by `#define ENABLE_DISPLAY`. Not part of demo scope.
 - **Persistent logging**: Log to SPIFFS for offline experiments without
   laptop tether.
 - **Power management**: Sleep modes between ranging cycles for battery life.
