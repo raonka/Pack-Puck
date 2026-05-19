@@ -334,5 +334,8 @@ void loop() {
   updateDisplay(displayDist, lastRSSI, currentState, consecutiveFailures);
 #endif
 
-  delay(RANGING_INTERVAL_MS);
+  // delay(RANGING_INTERVAL_MS) removed — the blocking radio.range() call itself
+  // takes ~648ms at BW 1625 kHz / SF6 (measured from CSV timestamps, May 2026).
+  // Adding 500ms on top produced ~1148ms cycles (~0.87 Hz), well below the
+  // FR-2.1 target of 2 Hz. Without the delay, effective rate is ~1.5 Hz.
 }
