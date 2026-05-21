@@ -203,14 +203,15 @@ void setup() {
   Serial.print  ("CSV_SCHEMA_V: "); Serial.println(CSV_SCHEMA_V);
   Serial.print  ("WIFI_OFF: ");     Serial.println(wifiOff ? 1 : 0);
   Serial.print  ("BT_OFF: ");       Serial.println(btOff   ? 1 : 0);
-  Serial.println("RADIO: 2400.0 MHz, BW 1625.0 kHz, SF 6, 12 dBm");
+  Serial.println("RADIO: 2400.0 MHz, BW 1625.0 kHz, SF 6, CR 4/7, 12 dBm");
   Serial.print  ("SPIFFS_FILE: ");  Serial.println(spiffsOk ? logFilename : "FAILED");
   Serial.println("-----------------------");
 
   if (!spiffsOk) enterFault("SPIFFS init failed.");
 
   spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
-  if (radio.begin(2400.0, 1625.0, 6) != RADIOLIB_ERR_NONE)
+  // IR-3.3: BW 1625.0 kHz  IR-3.4: SF 6  IR-3.5: CR 4/7 (RadioLib cr=7 → register 0x03)
+  if (radio.begin(2400.0, 1625.0, 6, 7) != RADIOLIB_ERR_NONE)
     enterFault("Radio init failed.");
   // IR-3.8: 12 dBm. begin() default is 10 dBm — must set explicitly.
   if (radio.setOutputPower(12) != RADIOLIB_ERR_NONE)
