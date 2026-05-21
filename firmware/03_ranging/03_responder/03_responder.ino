@@ -12,7 +12,7 @@ SPIClass spi(FSPI);
 SX1280 radio = new Module(7, 9, 8, 36, spi);
 
 // ── Config ────────────────────────────────────────────────────────────────────
-#define FW_VERSION    "0.5-spiffs-logging"
+#define FW_VERSION    "0.6-tx-power"
 #define CSV_SCHEMA_V  1
 #define ONBOARD_LED   37
 #define RADIO_ADDRESS 0x12345678
@@ -35,7 +35,6 @@ const char* stateStr(RespState s) {
 File     logFile;
 bool     spiffsOk  = false;
 uint32_t seqNum    = 0;
-uint32_t loopCount = 0;
 char     boardIdShort[7];
 char     logFilename[40];
 
@@ -46,9 +45,13 @@ void logLine(const char* line) {
   }
 }
 
+// FR-5.4: flush every SPIFFS_FLUSH_EVERY logged rows (not loop iterations —
+// most responder loops are silenced timeouts and don't log).
 void flushLog() {
-  if (spiffsOk && logFile && (loopCount % SPIFFS_FLUSH_EVERY == 0)) {
+  static uint16_t logsSinceFlush = 0;
+  if (spiffsOk && logFile && ++logsSinceFlush >= SPIFFS_FLUSH_EVERY) {
     logFile.flush();
+    logsSinceFlush = 0;
   }
 }
 
@@ -88,7 +91,11 @@ void processSerialCommands() {
         if (SPIFFS.exists(fname)) {
           File f = SPIFFS.open(fname, "r");
           Serial.print("---BEGIN "); Serial.print(fname); Serial.println("---");
-          while (f.available()) Serial.write(f.read());
+          uint8_t dumpBuf[256];
+          while (f.available()) {
+            size_t n = f.read(dumpBuf, sizeof(dumpBuf));
+            Serial.write(dumpBuf, n);
+          }
           Serial.print("---END ");   Serial.print(fname); Serial.println("---");
           f.close();
         } else {
@@ -178,6 +185,13 @@ void setup() {
   bool wifiOff = WiFi.mode(WIFI_OFF);
   bool btOff   = btStop();
 
+  // Check FR-1.6 before initSpiffs() — avoids leaving an empty CSV behind on fault
+  if (!wifiOff || !btOff) {
+    char reason[48];
+    snprintf(reason, sizeof(reason), "WiFi/BT off failed (W=%d, BT=%d)", wifiOff, btOff);
+    enterFault(reason);
+  }
+
   spiffsOk = initSpiffs();
 
   // Boot banner
@@ -193,12 +207,14 @@ void setup() {
   Serial.print  ("SPIFFS_FILE: ");  Serial.println(spiffsOk ? logFilename : "FAILED");
   Serial.println("-----------------------");
 
-  if (!wifiOff || !btOff) enterFault("WiFi/BT shutdown failed.");
-  if (!spiffsOk)          enterFault("SPIFFS init failed.");
+  if (!spiffsOk) enterFault("SPIFFS init failed.");
 
   spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
   if (radio.begin(2400.0, 1625.0, 6) != RADIOLIB_ERR_NONE)
     enterFault("Radio init failed.");
+  // IR-3.8: 12 dBm. begin() default is 10 dBm — must set explicitly.
+  if (radio.setOutputPower(12) != RADIOLIB_ERR_NONE)
+    enterFault("setOutputPower failed.");
 
   Serial.println("[OK] Radio initialised");
 
@@ -222,14 +238,13 @@ void setup() {
 
 // ── loop ──────────────────────────────────────────────────────────────────────
 void loop() {
-  loopCount++;
   processSerialCommands();
 
   // FR-3.1, FR-3.2 — listen and auto-reply
   int radioState = radio.range(false, RADIO_ADDRESS);
 
   // Silence timeouts — not a loggable event for the Responder
-  if (radioState == RADIOLIB_ERR_RX_TIMEOUT || radioState == -901) return;
+  if (radioState == RADIOLIB_ERR_RX_TIMEOUT || radioState == RADIOLIB_ERR_RANGING_TIMEOUT) return;
 
   seqNum++;
   char line[80];

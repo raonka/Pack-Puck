@@ -7,6 +7,9 @@
 
 // Uncomment to enable OLED display — data collection builds only (Step 4.5)
 #define ENABLE_DISPLAY
+#ifdef ENABLE_DISPLAY
+  #warning "COMMENT OUT BEFORE NO DISPLAY BUILD — see FIRMWARE_PLAN Step 4.5.3"
+#endif
 
 #ifdef ENABLE_DISPLAY
 #include <U8g2lib.h>
@@ -21,7 +24,7 @@ SPIClass spi(FSPI);
 SX1280 radio = new Module(7, 9, 8, 36, spi);
 
 // ── Config ────────────────────────────────────────────────────────────────────
-#define FW_VERSION               "0.5-spiffs-logging"
+#define FW_VERSION               "0.6-tx-power"
 #define CSV_SCHEMA_V             1
 #define ONBOARD_LED              37
 #define RANGING_INTERVAL_MS      500
@@ -106,7 +109,11 @@ void processSerialCommands() {
         if (SPIFFS.exists(fname)) {
           File f = SPIFFS.open(fname, "r");
           Serial.print("---BEGIN "); Serial.print(fname); Serial.println("---");
-          while (f.available()) Serial.write(f.read());
+          uint8_t dumpBuf[256];
+          while (f.available()) {
+            size_t n = f.read(dumpBuf, sizeof(dumpBuf));
+            Serial.write(dumpBuf, n);
+          }
           Serial.print("---END ");   Serial.print(fname); Serial.println("---");
           f.close();
         } else {
@@ -181,7 +188,9 @@ bool initSpiffs() {
 // ── Radio init ────────────────────────────────────────────────────────────────
 bool initRadio() {
   spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
-  return radio.begin(2400.0, 1625.0, 6) == RADIOLIB_ERR_NONE;
+  if (radio.begin(2400.0, 1625.0, 6) != RADIOLIB_ERR_NONE) return false;
+  // IR-3.8: 12 dBm. begin() default is 10 dBm — must set explicitly.
+  return radio.setOutputPower(12) == RADIOLIB_ERR_NONE;
 }
 
 // ── FAULT — BR-1.5 ────────────────────────────────────────────────────────────
@@ -242,6 +251,13 @@ void setup() {
   bool wifiOff = WiFi.mode(WIFI_OFF);
   bool btOff   = btStop();
 
+  // Check FR-1.6 before initSpiffs() — avoids leaving an empty CSV behind on fault
+  if (!wifiOff || !btOff) {
+    char reason[48];
+    snprintf(reason, sizeof(reason), "WiFi/BT off failed (W=%d, BT=%d)", wifiOff, btOff);
+    enterFault(reason);
+  }
+
   // SPIFFS init — must happen before banner so filename is available
   spiffsOk = initSpiffs();
 
@@ -258,8 +274,7 @@ void setup() {
   Serial.print  ("SPIFFS_FILE: ");  Serial.println(spiffsOk ? logFilename : "FAILED");
   Serial.println("-----------------------");
 
-  if (!wifiOff || !btOff) enterFault("WiFi/BT shutdown failed.");
-  if (!spiffsOk)          enterFault("SPIFFS init failed.");
+  if (!spiffsOk) enterFault("SPIFFS init failed.");
 
 #ifdef ENABLE_DISPLAY
   u8g2.begin();
@@ -307,7 +322,7 @@ void loop() {
       (unsigned long)seqNum, (unsigned long)t,
       dist, rssi, stateStr(currentState), consecutiveFailures);
 
-  } else if (radioState == RADIOLIB_ERR_RX_TIMEOUT || radioState == -901) {
+  } else if (radioState == RADIOLIB_ERR_RX_TIMEOUT || radioState == RADIOLIB_ERR_RANGING_TIMEOUT) {
     // FR-2.3 TIMEOUT
     consecutiveFailures++;
     currentState = (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES)
