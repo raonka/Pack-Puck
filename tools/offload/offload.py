@@ -38,8 +38,12 @@ Exit codes:
 import argparse
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# IST = UTC+5:30. Operators in India enter timestamps in IST; the methodology
+# CSV line 2 stores BOOT_UTC in ISO 8601 UTC, so this script converts.
+IST_OFFSET = timedelta(hours=5, minutes=30)
 
 try:
     import serial
@@ -252,8 +256,287 @@ def dump_file(ser, fname, expected_size, out_path, verbose,
     return status, actual
 
 
+# ── FORMAT helper + unplug countdown ────────────────────────────────────────
+def do_format(ser, verbose, timeout_s=15.0):
+    """Send FORMAT and stream the firmware's response until 'Done' or timeout.
+    Returns True if 'Done' was seen, False otherwise."""
+    send(ser, "FORMAT", verbose)
+    saw_done = False
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        line = read_line(ser, verbose)
+        if line is None:
+            continue
+        print(line)
+        if "Done" in line:
+            saw_done = True
+            break
+    if not saw_done:
+        print(f"Warning: no 'Done' confirmation from FORMAT within "
+              f"{timeout_s:.0f} s — verify by reconnecting and running LIST.",
+              file=sys.stderr)
+    return saw_done
+
+
+def countdown_unplug(seconds=10):
+    """Give the operator time to physically unplug the puck before the script
+    closes the serial port. Closing the port on ESP32-S3 native USB-CDC
+    triggers a chip reset; if the puck reboots into NORMAL with no one
+    listening for OFFLOAD, it will create a stub pucklog file on fresh SPIFFS."""
+    print()
+    print(f"⚠  UNPLUG THE PUCK NOW so it doesn't reboot into NORMAL and "
+          f"create a stub file.")
+    print(f"   Script will close the port in {seconds} seconds.")
+    for i in range(seconds, 0, -1):
+        print(f"   {i:2d}...", end="\r", flush=True)
+        time.sleep(1)
+    print(" " * 40)  # clear the countdown line
+
+
+# ── Operator metadata (methodology §4.1, §4.4) ──────────────────────────────
+# At paper-grade data collection time, line 2 of each CSV is filled in by the
+# operator with session context (SITE, SESSION_ID, BOOT_UTC, RUN_ID,
+# TRUE_DISTANCE_M) and the file is renamed per the methodology naming
+# convention. The firmware can't produce these because it has no RTC, no
+# session log, and no ground-truth measurement. This script collects them
+# interactively and rewrites each downloaded CSV before the FORMAT prompt.
+
+# Board label is taken from the boot banner's ROLE field directly (full word).
+_BOARD_FROM_ROLE = {"INITIATOR": "Initiator", "RESPONDER": "Responder"}
+
+
+def _split_csv(text):
+    """Split a comma-separated input line and trim each field. Returns list."""
+    return [p.strip() for p in text.split(",")]
+
+
+def _ist_to_utc_iso(ist_str):
+    """Convert IST timestamp → 'YYYY-MM-DDTHH:MM:SSZ' (UTC).
+
+    Accepts:
+      - 'YYYY-MM-DD HH:MM:SS' or 'YYYY-MM-DDTHH:MM:SS' (full)
+      - 'YYYY-MM-DD HH:MM' (no seconds)
+      - 'HH:MM:SS' or 'HH:MM' (date auto-filled with today's IST date)
+      - 'NA' (returned unchanged)
+    Returns None on parse failure."""
+    s = ist_str.strip()
+    if s.upper() == "NA":
+        return "NA"
+    s = s.replace("T", " ")
+
+    dt_ist = None
+    # Try full date+time formats first.
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            dt_ist = datetime.strptime(s, fmt)
+            break
+        except ValueError:
+            continue
+    # Fall back to time-only — date auto-fills with today's IST date.
+    if dt_ist is None:
+        for fmt in ("%H:%M:%S", "%H:%M"):
+            try:
+                t = datetime.strptime(s, fmt).time()
+                dt_ist = datetime.combine(datetime.now().date(), t)
+                break
+            except ValueError:
+                continue
+    if dt_ist is None:
+        return None
+    dt_utc = dt_ist - IST_OFFSET
+    return dt_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _extract_boot_seq(safe_name):
+    """pucklog_<id>_<boot_seq>.csv → '<boot_seq>'. Returns '' if pattern doesn't match."""
+    import re
+    m = re.match(r"^pucklog_[0-9A-Fa-f]+_(\d+)\.csv$", safe_name)
+    return m.group(1) if m else ""
+
+
+def _build_new_filename(session_meta, dist_or_run, true_dist, role, safe_name):
+    """Methodology §4.4 + per-file disambiguation:
+      <DATE>_<SITE>_<TIER>_<distance_or_run>[-<TRUE_DISTANCE_M>]_<BOARD>_<S<n>>_b<boot_seq>.csv
+
+    The TRUE_DISTANCE_M suffix and the boot_seq trailer keep filenames unique
+    across multiple boots at the same cone position within a single session."""
+    board = _BOARD_FROM_ROLE.get(role, role or "Unknown")
+    dist_part = dist_or_run
+    if true_dist and true_dist.upper() != "NA":
+        dist_part = f"{dist_or_run}-{true_dist}"
+    boot_seq = _extract_boot_seq(safe_name)
+    suffix = f"_b{boot_seq}" if boot_seq else ""
+    return (f"{session_meta['DATE']}_{session_meta['SITE']}_"
+            f"{session_meta['TIER']}_{dist_part}_{board}_"
+            f"{session_meta['S_NUM']}{suffix}.csv")
+
+
+def prompt_session_metadata():
+    """Prompt once for session-wide values. Re-prompts on missing/wrong-count.
+    Returns dict (with auto-derived SESSION_ID) or None if user typed 'skip'."""
+    print()
+    print("=== Session metadata (once; written to CSV line 2 + used in filenames) ===")
+    print("Per methodology §4.1 / §4.4. SESSION_ID is auto-derived as <DATE>_<SITE>_<S<n>>.")
+    print("Enter 4 comma-separated values: SITE, TIER, DATE, S<n>")
+    print("  DATE = YYYY-MM-DD, or 'today' for current local date.")
+    print("  Example: FMAE, T1, today, S1")
+    print("Type 'skip' to skip all metadata (flat filenames will be used).")
+    while True:
+        try:
+            line = input("> ").strip()
+        except EOFError:
+            return None
+        if line.lower() == "skip":
+            print("Metadata skipped.")
+            return None
+        if not line:
+            print("Params missing — please enter 4 comma-separated values, or 'skip'.")
+            continue
+        parts = _split_csv(line)
+        if len(parts) != 4:
+            print(f"Params missing/extra — got {len(parts)} field(s), need 4. "
+                  "Re-enter.")
+            continue
+        site, tier, date, s_num = parts
+        if not all([site, tier, date, s_num]):
+            print("Params missing — one or more fields are empty. Re-enter.")
+            continue
+        if date.lower() == "today":
+            date = datetime.now().strftime("%Y-%m-%d")
+        session_id = f"{date}_{site}_{s_num}"
+        return {"SITE": site, "TIER": tier, "DATE": date, "S_NUM": s_num,
+                "SESSION_ID": session_id}
+
+
+def prompt_file_metadata(safe_name, idx, total, session_meta, role,
+                        projected_names, session_dir):
+    """Prompt per file. Re-prompts on missing/wrong-count/invalid-IST/overwrite.
+    Returns (file_meta dict, new_filename) or (None, None) on 'skip'."""
+    print()
+    print(f"  Metadata for {safe_name} ({idx}/{total})")
+    print("  Enter 3 comma-separated values: "
+          "distance_or_run, TRUE_DISTANCE_M, BOOT_UTC_IST")
+    print("    distance_or_run: mode label for this recording.")
+    print("      - Static tier: distance label like '100m' "
+          "(puck stays at that cone for the whole recording).")
+    print("      - Mobile tier: run label like 'walk' or 'run-to-200m' "
+          "(operator carries the puck while it logs).")
+    print("    TRUE_DISTANCE_M: actual ground-truth distance in metres "
+          "(laser-measured for static; NA for mobile where a single distance "
+          "doesn't apply).")
+    print("    BOOT_UTC_IST: 'YYYY-MM-DD HH:MM:SS' or just 'HH:MM:SS' "
+          "(today's IST date auto-fills). Script converts to UTC for the CSV.")
+    print("    Filename: <date>_<site>_<tier>_<distance_or_run>"
+          "[-<TRUE_DISTANCE_M>]_<role>_<S<n>>_b<boot_seq>.csv")
+    print("    Examples:")
+    print("      100m, 100.0, 10:30:00     (static at the 100m cone)")
+    print("      walk, NA, 14:05:00        (mobile walk session)")
+    print("  Type 'skip' to skip this file's metadata + rename.")
+    while True:
+        try:
+            line = input("  > ").strip()
+        except EOFError:
+            return None, None
+        if line.lower() == "skip":
+            return None, None
+        if not line:
+            print("  Params missing — enter 3 comma-separated values, or 'skip'.")
+            continue
+        parts = _split_csv(line)
+        if len(parts) != 3:
+            print(f"  Params missing/extra — got {len(parts)} field(s), need 3. "
+                  "Re-enter.")
+            continue
+        dist_or_run, true_dist, boot_utc_ist = parts
+        if not dist_or_run:
+            print("  Params missing — distance_or_run is required. Re-enter.")
+            continue
+        if not true_dist or not boot_utc_ist:
+            print("  Params missing — use NA for unknown TRUE_DISTANCE_M or "
+                  "BOOT_UTC_IST. Re-enter.")
+            continue
+        boot_utc = _ist_to_utc_iso(boot_utc_ist)
+        if boot_utc is None:
+            print(f"  Invalid BOOT_UTC_IST '{boot_utc_ist}' — use "
+                  "'YYYY-MM-DD HH:MM:SS' or 'NA'. Re-enter.")
+            continue
+        new_name = _build_new_filename(session_meta, dist_or_run, true_dist,
+                                       role, safe_name)
+        if new_name in projected_names:
+            print(f"  Refusing to overwrite: '{new_name}' already assigned to "
+                  "another file this run. Choose a different distance_or_run "
+                  "or TRUE_DISTANCE_M.")
+            continue
+        if (session_dir / new_name).exists() and (session_dir / new_name) != \
+                (session_dir / safe_name):
+            print(f"  Refusing to overwrite: '{new_name}' already exists on disk. "
+                  "Choose a different distance_or_run or TRUE_DISTANCE_M.")
+            continue
+        run_id = f"{session_meta['TIER']}_{dist_or_run}_{session_meta['S_NUM']}"
+        return ({"BOOT_UTC": boot_utc, "RUN_ID": run_id,
+                 "TRUE_DISTANCE_M": true_dist,
+                 "DISTANCE_OR_RUN": dist_or_run}, new_name)
+
+
+def apply_metadata_and_rename(out_path, session_meta, file_meta, role):
+    """Insert operator metadata as CSV line 2 and rename file per methodology
+    §4.4. Returns the final Path (or the original if anything fails)."""
+    if not out_path.exists():
+        return out_path
+
+    # Build the operator metadata line. Firmware uses \r\n; preserve that.
+    meta_line = (
+        f"# SITE={session_meta['SITE']}, "
+        f"SESSION_ID={session_meta['SESSION_ID']}, "
+        f"BOOT_UTC={file_meta['BOOT_UTC']}, "
+        f"RUN_ID={file_meta['RUN_ID']}, "
+        f"TRUE_DISTANCE_M={file_meta['TRUE_DISTANCE_M']}"
+    ).encode("utf-8") + b"\r\n"
+
+    data = out_path.read_bytes()
+    # Insert immediately after the first line terminator. Firmware writes \r\n
+    # via println(), but tolerate \n too in case anything stripped \r.
+    idx = data.find(b"\r\n")
+    term_len = 2
+    if idx == -1:
+        idx = data.find(b"\n")
+        term_len = 1
+    if idx == -1:
+        # No newline at all — append at end (defensive; shouldn't happen).
+        new_data = data + b"\r\n" + meta_line
+    else:
+        cut = idx + term_len
+        new_data = data[:cut] + meta_line + data[cut:]
+
+    # Compose new filename — same logic the prompt used (board from ROLE,
+    # TRUE_DISTANCE_M appended to distance_or_run, boot_seq trailer).
+    new_name = _build_new_filename(
+        session_meta, file_meta['DISTANCE_OR_RUN'],
+        file_meta['TRUE_DISTANCE_M'], role, out_path.name)
+    new_path = out_path.parent / new_name
+
+    # Final overwrite safety check — the prompt validated this earlier, but a
+    # concurrent process or a same-name retry could have written to new_path
+    # between then and now. Refuse rather than clobber.
+    if new_path != out_path and new_path.exists():
+        print(f"  Refusing to overwrite existing '{new_path.name}' — leaving "
+              f"{out_path.name} in place with metadata applied to its current path.",
+              file=sys.stderr)
+        out_path.write_bytes(new_data)
+        return out_path
+
+    new_path.write_bytes(new_data)
+    if new_path != out_path:
+        try:
+            out_path.unlink()
+        except OSError:
+            pass
+    return new_path
+
+
 # ── Manifest ────────────────────────────────────────────────────────────────
-def write_manifest(path, port, baud, banner, results):
+def write_manifest(path, port, baud, banner, results, session_meta=None,
+                   file_meta_by_fname=None, renamed_by_fname=None):
     ts = datetime.now(timezone.utc).isoformat()
     with path.open("w", encoding="utf-8") as f:
         f.write(f"timestamp_utc: {ts}\n")
@@ -262,10 +545,22 @@ def write_manifest(path, port, baud, banner, results):
         f.write("\n[BANNER]\n")
         for k, v in banner.items():
             f.write(f"{k}: {v}\n")
+        if session_meta:
+            f.write("\n[SESSION_METADATA]\n")
+            for k, v in session_meta.items():
+                f.write(f"{k}: {v}\n")
         f.write("\n[FILES]\n")
         for fname, expected, actual, status in results:
-            f.write(f"{fname}  expected={expected}  actual={actual}  "
-                    f"status={status}\n")
+            renamed = (renamed_by_fname or {}).get(fname)
+            line = (f"{fname}  expected={expected}  actual={actual}  "
+                    f"status={status}")
+            if renamed:
+                line += f"  renamed_to={renamed}"
+            f.write(line + "\n")
+            fm = (file_meta_by_fname or {}).get(fname)
+            if fm:
+                for k, v in fm.items():
+                    f.write(f"    {k}: {v}\n")
 
 
 # ── main ────────────────────────────────────────────────────────────────────
@@ -284,6 +579,9 @@ def main():
         help="Subfolder name under --out-dir (default: current local timestamp).")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="Print every received line (<<<) and sent command (>>>).")
+    ap.add_argument("--no-metadata", action="store_true",
+                    help="Skip operator-metadata prompts (line 2 + file rename). "
+                         "Default: prompt for methodology §4.1 / §4.4 metadata.")
     args = ap.parse_args()
 
     # Defer mkdir until we actually have something to write — otherwise every
@@ -345,7 +643,13 @@ def main():
 
         fw = banner.get("FW_VERSION", "?")
         board = banner.get("BOARD_ID", "?")
-        print(f"Banner OK: FW={fw}, BOARD={board}")
+        role = banner.get("ROLE", "").strip()
+        role_label = _BOARD_FROM_ROLE.get(role, role or "Unknown")
+        print(f"Banner OK: FW={fw}, BOARD={board}, ROLE={role_label}")
+
+        # Tag session folder with role so Initiator and Responder offloads
+        # of the same physical session land in distinct directories.
+        session_dir = Path(args.out_dir) / f"{args.session_id}-{role_label}"
 
         try:
             files = list_files(ser, args.verbose, timeout_s=5.0)
@@ -356,6 +660,33 @@ def main():
 
         total_bytes = sum(sz for _, sz in files)
         print(f"LIST: {len(files)} files, total {total_bytes} bytes")
+
+        # Early FORMAT escape hatch — useful when the listed files are known
+        # garbage (e.g. wrong firmware version was running) and the operator
+        # doesn't want to bother downloading them. Skips the rest of the flow.
+        if files:
+            try:
+                early = input(
+                    "Wipe SPIFFS now and exit WITHOUT downloading? "
+                    "Type YES to FORMAT immediately, anything else to "
+                    "proceed with download: ").strip()
+            except EOFError:
+                early = ""
+            if early == "YES":
+                do_format(ser, args.verbose)
+                print("SPIFFS wiped. No downloads performed.")
+                countdown_unplug(10)
+                return 0
+
+        # Methodology §4.1 / §4.4 operator metadata. Prompted once for session
+        # values, then per-file during download. Application (insert line 2 +
+        # rename) is deferred to after retries so a re-download doesn't clobber
+        # already-applied metadata.
+        session_meta = None
+        file_meta_by_fname = {}
+        projected_names = set()  # collision detection across per-file prompts
+        if not args.no_metadata and files:
+            session_meta = prompt_session_metadata()
 
         results = []
         for i, (fname, expected) in enumerate(files, start=1):
@@ -373,6 +704,18 @@ def main():
             else:
                 print(f"{status} (got {actual}, expected {expected})")
             results.append((fname, expected, actual, status))
+
+            # Per-file metadata prompt — only if session metadata was provided
+            # and the file actually got written. Cached for use after retries.
+            # projected_names is mutated by the prompt on success so subsequent
+            # files can't collide; an attempted collision re-prompts that file.
+            if session_meta and status != ST_SKIPPED:
+                fm, new_name = prompt_file_metadata(
+                    safe_name, i, len(files), session_meta, role,
+                    projected_names, session_dir)
+                if fm:
+                    file_meta_by_fname[fname] = fm
+                    projected_names.add(new_name)
 
         # Retry loop for any non-OK files. Transient USB-CDC glitches (a missed
         # END marker, an oversized read window) are usually fixed by a second
@@ -409,11 +752,33 @@ def main():
 
         any_bad = any(r[3] != ST_OK for r in results)
 
+        # Apply operator metadata + rename for every file that has cached
+        # metadata and was actually written to disk. Done after retries so a
+        # re-download cannot clobber the line-2 insert.
+        renamed_by_fname = {}
+        if session_meta and file_meta_by_fname:
+            print()
+            print("Applying operator metadata (line 2) + renaming files...")
+            for fname, _, _, status in results:
+                if status == ST_SKIPPED or fname not in file_meta_by_fname:
+                    continue
+                safe_name = fname.lstrip("/")
+                out_path = session_dir / safe_name
+                new_path = apply_metadata_and_rename(
+                    out_path, session_meta, file_meta_by_fname[fname], role)
+                if new_path != out_path:
+                    renamed_by_fname[fname] = new_path.name
+                    print(f"  {safe_name} → {new_path.name}")
+                else:
+                    print(f"  {safe_name} (metadata applied; same filename)")
+
         # Ensure session_dir exists even if zero files were downloaded — we
         # still want a manifest recording what we saw from this puck.
         session_dir.mkdir(parents=True, exist_ok=True)
         write_manifest(session_dir / "manifest.txt", args.port, args.baud,
-                       banner, results)
+                       banner, results, session_meta=session_meta,
+                       file_meta_by_fname=file_meta_by_fname,
+                       renamed_by_fname=renamed_by_fname)
 
         counts = {ST_OK: 0, ST_SIZE_MISMATCH: 0, ST_SKIPPED: 0}
         bytes_written = 0
@@ -435,26 +800,9 @@ def main():
             except EOFError:
                 answer = ""
             if answer == "YES":
-                send(ser, "FORMAT", args.verbose)
-                # Firmware emits "Formatting SPIFFS..." then
-                # "Done. Reboot to re-init logging." — format on a 1.5 MB
-                # partition can take a few seconds, so allow up to 15 s.
-                saw_done = False
-                format_deadline = time.monotonic() + 15.0
-                while time.monotonic() < format_deadline:
-                    line = read_line(ser, args.verbose)
-                    if line is None:
-                        continue
-                    print(line)
-                    if "Done" in line:
-                        saw_done = True
-                        break
-                if not saw_done:
-                    print("Warning: no 'Done' confirmation from FORMAT within "
-                          "15 s — verify by reconnecting and running LIST.",
-                          file=sys.stderr)
-                print("SPIFFS wiped. Reset the puck (unplug/replug or RST) "
-                      "before the next data session.")
+                do_format(ser, args.verbose)
+                print("SPIFFS wiped.")
+                countdown_unplug(10)
             else:
                 print("FORMAT skipped.")
 
