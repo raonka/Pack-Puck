@@ -24,13 +24,21 @@ SPIClass spi(FSPI);
 SX1280 radio = new Module(7, 9, 8, 36, spi);
 
 // ── Config ────────────────────────────────────────────────────────────────────
-#define FW_VERSION               "0.6-tx-power"
+#define FW_VERSION               "0.7-offload-mode"
 #define CSV_SCHEMA_V             1
 #define ONBOARD_LED              37
 #define RANGING_INTERVAL_MS      500
 #define MAX_CONSECUTIVE_FAILURES 3
 #define RADIO_ADDRESS            0x12345678
 #define SPIFFS_FLUSH_EVERY       10   // FR-5.4: flush every 10 cycles ≈ 5 s
+#define MODE_SELECT_WINDOW_MS    3000 // boot-time window to type "OFFLOAD"
+// Radio config (FSD §10.3 — locked). Single source for radio.begin(), the
+// boot banner, and the per-CSV header line — never edit one without the others.
+#define RADIO_FREQ_MHZ           2400.0f  // IR-3.2
+#define RADIO_BW_KHZ             1625.0f  // IR-3.3
+#define RADIO_SF                 6        // IR-3.4
+#define RADIO_CR                 7        // IR-3.5 — RadioLib cr=7 → register 0x03 (4/7)
+#define RADIO_TX_POWER_DBM       12       // IR-3.8
 
 // ── State ─────────────────────────────────────────────────────────────────────
 enum PuckState { ST_BOOT, ST_RANGING, ST_DISPLAY, ST_PEER_LOST, ST_FAULT };
@@ -38,6 +46,7 @@ PuckState currentState = ST_BOOT;
 int  consecutiveFailures = 0;
 float lastDistance = 0.0;
 int   lastRSSI     = 0;
+bool  offloadMode  = false;
 
 const char* stateStr(PuckState s) {
   switch (s) {
@@ -87,18 +96,20 @@ void processSerialCommands() {
       len = 0;
 
       if (cmd == "LIST") {
+        // Framed for tools/offload/offload.py — markers match the DUMP style.
+        // Each row: "<filename> <size_bytes>" with a single space separator.
+        Serial.println("---BEGIN LIST---");
         File root = SPIFFS.open("/");
         File f = root.openNextFile();
-        int n = 0;
         while (f) {
-          Serial.print(f.name());
-          Serial.print("  (");
-          Serial.print(f.size());
-          Serial.println(" bytes)");
+          String name = f.name();
+          if (!name.startsWith("/")) name = "/" + name; // match DUMP marker form
+          Serial.print(name);
+          Serial.print(' ');
+          Serial.println(f.size());
           f = root.openNextFile();
-          n++;
         }
-        if (n == 0) Serial.println("SPIFFS empty.");
+        Serial.println("---END LIST---");
 
       } else if (cmd.startsWith("DUMP ")) {
         String fname = cmd.substring(5);
@@ -141,13 +152,18 @@ void processSerialCommands() {
 }
 
 // ── SPIFFS init — FR-5.5 ──────────────────────────────────────────────────────
-bool initSpiffs() {
+// Mount SPIFFS and derive boardIdShort. Both modes need this so LIST/DUMP work
+// in OFFLOAD; the new pucklog file is only created in NORMAL via createLogFile().
+bool mountSpiffs() {
   if (!SPIFFS.begin(true)) return false;
-
   // board_id_short: lower 6 hex digits of eFuse MAC
   snprintf(boardIdShort, sizeof(boardIdShort), "%06X",
            (uint32_t)(ESP.getEfuseMac() & 0xFFFFFF));
+  return true;
+}
 
+// NORMAL-mode only: choose next boot_seq, open the log file, write headers.
+bool createLogFile() {
   // Scan for highest existing boot_seq and increment
   int bootSeq = 1;
   // f.name() on ESP32 SPIFFS omits the leading '/' — normalise before comparing
@@ -170,13 +186,18 @@ bool initSpiffs() {
   logFile = SPIFFS.open(logFilename, "w");
   if (!logFile) return false;
 
-  // Firmware-written header line 1 — DR-1.1
+  // Firmware-written header line 1 — DR-1.1.
+  // Includes radio config so each CSV is self-describing across firmware
+  // versions — even if SPIFFS holds files written by older firmware with
+  // different radio settings, the per-file header is authoritative.
   uint64_t mac = ESP.getEfuseMac();
-  char h[96];
+  char h[192];
   snprintf(h, sizeof(h),
-    "# CSV_SCHEMA_V=%d, FW=%s, BOARD_ID=0x%04X%08X, ROLE=INITIATOR, BOOT_MS=0",
+    "# CSV_SCHEMA_V=%d, FW=%s, BOARD_ID=0x%04X%08X, ROLE=INITIATOR, BOOT_MS=0, "
+    "FREQ=%.1f, BW=%.1f, SF=%d, CR=%d, TXPOWER=%d",
     CSV_SCHEMA_V, FW_VERSION,
-    (uint16_t)(mac >> 32), (uint32_t)mac);
+    (uint16_t)(mac >> 32), (uint32_t)mac,
+    RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR, RADIO_TX_POWER_DBM);
   logFile.println(h);
 
   // Column header — DR-1
@@ -185,13 +206,46 @@ bool initSpiffs() {
   return true;
 }
 
+// Mode-select window: poll Serial for up to MODE_SELECT_WINDOW_MS at ~50 ms
+// granularity. Returns true on an exact-match "OFFLOAD" line (\r and \n trimmed).
+// RX buffer is NOT flushed first — bytes that arrived during banner print count.
+bool pollForOffloadCommand() {
+  char buf[32];
+  int  len = 0;
+  bool overflow = false;
+  uint32_t start = millis();
+  while ((millis() - start) < MODE_SELECT_WINDOW_MS) {
+    while (Serial.available()) {
+      char c = (char)Serial.read();
+      if (c == '\n') {
+        if (!overflow) {
+          buf[len] = '\0';
+          if (strcmp(buf, "OFFLOAD") == 0) return true;
+        }
+        len = 0;
+        overflow = false;
+      } else if (c == '\r') {
+        // skip — \r\n trimmed before exact-match compare
+      } else if (!overflow) {
+        if (len < (int)sizeof(buf) - 1) {
+          buf[len++] = c;
+        } else {
+          overflow = true; // ignore rest of this oversized line
+        }
+      }
+    }
+    delay(50);
+  }
+  return false;
+}
+
 // ── Radio init ────────────────────────────────────────────────────────────────
 bool initRadio() {
   spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
-  // IR-3.3: BW 1625.0 kHz  IR-3.4: SF 6  IR-3.5: CR 4/7 (RadioLib cr=7 → register 0x03)
-  if (radio.begin(2400.0, 1625.0, 6, 7) != RADIOLIB_ERR_NONE) return false;
-  // IR-3.8: 12 dBm. begin() default is 10 dBm — must set explicitly.
-  return radio.setOutputPower(12) == RADIOLIB_ERR_NONE;
+  if (radio.begin(RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR) != RADIOLIB_ERR_NONE)
+    return false;
+  // begin() default is 10 dBm — must set explicitly to honour IR-3.8.
+  return radio.setOutputPower(RADIO_TX_POWER_DBM) == RADIOLIB_ERR_NONE;
 }
 
 // ── FAULT — BR-1.5 ────────────────────────────────────────────────────────────
@@ -248,21 +302,22 @@ void setup() {
   delay(1000); // Field-ready: SPIFFS removes Serial dependency (was 3 s in Phase 4.6)
   pinMode(ONBOARD_LED, OUTPUT);
 
-  // FR-1.6: WiFi + BT off before anything else
+  // SPIFFS mount (no file opened yet — see createLogFile() for NORMAL mode).
+  bool spiffsMounted = mountSpiffs();
+
+  // FR-1.6: WiFi + BT off. The FAULT path stays ahead of the mode-select window —
+  // a faulty puck must not sit waiting 3 s for OFFLOAD.
   bool wifiOff = WiFi.mode(WIFI_OFF);
   bool btOff   = btStop();
-
-  // Check FR-1.6 before initSpiffs() — avoids leaving an empty CSV behind on fault
   if (!wifiOff || !btOff) {
     char reason[48];
     snprintf(reason, sizeof(reason), "WiFi/BT off failed (W=%d, BT=%d)", wifiOff, btOff);
     enterFault(reason);
   }
 
-  // SPIFFS init — must happen before banner so filename is available
-  spiffsOk = initSpiffs();
+  if (!spiffsMounted) enterFault("SPIFFS init failed.");
 
-  // Boot banner — FR-1.5 / FIRMWARE_PLAN §4.6, §4.7
+  // Boot banner part 1 — FR-1.5 / FIRMWARE_PLAN §4.6
   uint64_t mac = ESP.getEfuseMac();
   Serial.println("--- Pack Pucks Boot ---");
   Serial.print  ("FW_VERSION: ");   Serial.println(FW_VERSION);
@@ -271,11 +326,27 @@ void setup() {
   Serial.print  ("CSV_SCHEMA_V: "); Serial.println(CSV_SCHEMA_V);
   Serial.print  ("WIFI_OFF: ");     Serial.println(wifiOff ? 1 : 0);
   Serial.print  ("BT_OFF: ");       Serial.println(btOff   ? 1 : 0);
-  Serial.println("RADIO: 2400.0 MHz, BW 1625.0 kHz, SF 6, CR 4/7, 12 dBm");
+  Serial.printf ("RADIO: %.1f MHz, BW %.1f kHz, SF %d, CR 4/%d, %d dBm\n",
+                 RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR, RADIO_TX_POWER_DBM);
+  Serial.print  ("MODE_SELECT_WINDOW_MS: "); Serial.println(MODE_SELECT_WINDOW_MS);
+
+  // Mode-select window — exact-match "OFFLOAD" line picks OFFLOAD, else NORMAL.
+  offloadMode = pollForOffloadCommand();
+
+  if (offloadMode) {
+    Serial.println("SPIFFS_FILE: <none>");
+    Serial.println("MODE: OFFLOAD");
+    Serial.println("-----------------------");
+    return; // loop() runs only the Serial command processor — no radio, no log.
+  }
+
+  // NORMAL mode: open the new pucklog file and finish the banner.
+  spiffsOk = createLogFile();
   Serial.print  ("SPIFFS_FILE: ");  Serial.println(spiffsOk ? logFilename : "FAILED");
+  Serial.println("MODE: NORMAL");
   Serial.println("-----------------------");
 
-  if (!spiffsOk) enterFault("SPIFFS init failed.");
+  if (!spiffsOk) enterFault("Log file open failed.");
 
 #ifdef ENABLE_DISPLAY
   u8g2.begin();
@@ -298,6 +369,10 @@ void setup() {
 
 // ── loop ──────────────────────────────────────────────────────────────────────
 void loop() {
+  if (offloadMode) {
+    processSerialCommands();
+    return;
+  }
   loopCount++;
   processSerialCommands();
 

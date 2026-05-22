@@ -3,8 +3,8 @@
 **Status:** Active. Living document for the June 15, 2026 demo and the Part 1 data campaign.
 **Authoritative for:** System behaviour, requirements, interfaces, data formats, and acceptance criteria for the Part 1 deliverable.
 **Audience:** Internal during development; public on Part 1 submission alongside `methodology.md`.
-**Document Version:** 1.2
-**Last Revised:** 15 May 2026
+**Document Version:** 1.4
+**Last Revised:** 22 May 2026
 **Owner:** Ishaan
 
 ---
@@ -225,7 +225,7 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **FR-1.4** — If radio initialisation fails, the LED ring shall flash red at 1 Hz indefinitely and the puck shall enter the FAULT state (`BR-1.5`).
 
-**FR-1.5** — On successful initialisation, the puck shall print a boot banner to Serial at 115200 baud containing, at minimum: firmware version, board ID (from `ESP.getEfuseMac()`), role (Initiator/Responder), CSV schema version (per DR-3), radio settings, and RF-state flags per FR-1.6.
+**FR-1.5** — On successful initialisation, the puck shall print a boot banner to Serial at 115200 baud containing, at minimum: firmware version, board ID (from `ESP.getEfuseMac()`), role (Initiator/Responder), CSV schema version (per DR-3), radio settings, RF-state flags per FR-1.6, the mode-select window duration (`MODE_SELECT_WINDOW_MS`), the SPIFFS log filename (or `<none>` in OFFLOAD mode), and the resolved boot mode (`MODE: OFFLOAD` or `MODE: NORMAL`) per FR-5.7.
 
 **FR-1.6** — On boot, *before* SX1280 initialisation, the puck shall disable WiFi by calling `WiFi.mode(WIFI_OFF)` and Bluetooth by calling `btStop()`. The boot banner shall include `WIFI_OFF=<0|1>` and `BT_OFF=<0|1>` reflecting the success of those API calls. If either API call reports failure, the corresponding flag shall be `0` and the puck shall enter the FAULT state (`BR-1.5`). This requirement supports the 2.4 GHz interference discipline of the Part 1 data collection campaign.
 
@@ -277,7 +277,9 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **FR-5.5** — On boot, the firmware shall scan SPIFFS for existing `pucklog_*` files and open the next available index. Filename: `pucklog_<board_id_short>_<boot_seq>.csv`, where `<board_id_short>` is a short form of the eFuse MAC and `<boot_seq>` is a monotonically increasing per-boot counter.
 
-**FR-5.6** — A USB Serial command shall provide download of any SPIFFS log file over USB Serial for post-session offload to a laptop. Exact command syntax is firmware-implementation detail (not specified here); the requirement is functional: the laptop must be able to retrieve logs without removing storage from the device.
+**FR-5.6** — USB Serial commands shall provide SPIFFS access from a connected laptop: `LIST` (enumerate all files; output framed with `---BEGIN LIST---` / `---END LIST---` markers, one `<filename> <size_bytes>` entry per line), `DUMP <filename>` (stream file byte-exact, framed with `---BEGIN <filename>---` / `---END <filename>---`), `DELETE <filename>`, and `FORMAT`. The framed LIST and DUMP output is consumed by the automated offload script (`tools/offload/offload.py`).
+
+**FR-5.7** — At each boot, after printing the boot banner header lines and before opening a new pucklog file, the firmware shall open a mode-select window of `MODE_SELECT_WINDOW_MS` milliseconds. If the exact string `OFFLOAD` (terminated with `\n`) is received during the window, the puck shall boot into **OFFLOAD mode**: no pucklog file is opened, no CSV headers are written, the ranging loop is not entered, and the main loop services only the FR-5.6 Serial commands. Otherwise the puck boots into **NORMAL mode** (existing behaviour). The FR-1.6 WiFi/BT fault check shall occur before the window opens — a faulty puck must not wait for OFFLOAD.
 
 ---
 
@@ -386,7 +388,7 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 **IR-3.2** — Modulation: LoRa  
 **IR-3.3** — Bandwidth: **1625 kHz** (the SX1280 register-level value; Semtech documentation labels this setting as "1600 kHz"). The hardware value is derived from the SX1280's 52 MHz crystal: 52 / 32 = 1.625 MHz. Both labels refer to the same setting.  
 **IR-3.4** — Spreading Factor: 6  
-**IR-3.5** — Coding Rate: 4/5 (RadioLib default)  
+**IR-3.5** — Coding Rate: 4/7 — RadioLib SX128x begin() passes cr=7 by default; setCodingRate maps this to register 0x03 (RADIOLIB_SX128X_LORA_CR_4_7). Confirmed against RadioLib 7.6.0 source.  
 **IR-3.6** — Sync Address: 0x12345678 (32-bit, must match on both pucks)  
 **IR-3.7** — Ranging Mode: SX1280 hardware ranging engine  
 **IR-3.8** — Output Power: 12 dBm (firmware configuration). The H594 variant's hardware maximum is approximately 12.5 dBm; the firmware uses 12 dBm as a slightly conservative setting compatible with RadioLib defaults.
@@ -418,9 +420,11 @@ Where:
 **DR-1.1** — Firmware-written header line at file open / boot:
 
 ```
-# CSV_SCHEMA_V=<n>, FW=<fw_version>, BOARD_ID=<efuse_mac_hex>, ROLE=INITIATOR, BOOT_MS=0
+# CSV_SCHEMA_V=<n>, FW=<fw_version>, BOARD_ID=<efuse_mac_hex>, ROLE=INITIATOR, BOOT_MS=0, FREQ=<mhz>, BW=<khz>, SF=<n>, CR=<n>, TXPOWER=<dbm>
 seq,timestamp_ms,status,raw_distance_m,rssi_dbm,state,consecutive_failures,radio_status_code
 ```
+
+Radio config fields (`FREQ`, `BW`, `SF`, `CR`, `TXPOWER`) are written from the firmware `#define` constants at compile time. Including them in the per-file header makes each CSV self-describing — if SPIFFS holds files from multiple firmware versions with different radio settings, the per-file header is authoritative for that file's radio config and the manifest or git history need not be consulted.
 
 A second comment line (operator-completed metadata) is added at post-session offload per `methodology.md` §4.1. Schema:
 
@@ -449,9 +453,11 @@ Where:
 **DR-2.1** — Firmware-written header line:
 
 ```
-# CSV_SCHEMA_V=<n>, FW=<fw_version>, BOARD_ID=<efuse_mac_hex>, ROLE=RESPONDER, BOOT_MS=0
+# CSV_SCHEMA_V=<n>, FW=<fw_version>, BOARD_ID=<efuse_mac_hex>, ROLE=RESPONDER, BOOT_MS=0, FREQ=<mhz>, BW=<khz>, SF=<n>, CR=<n>, TXPOWER=<dbm>
 seq,timestamp_ms,event,rssi_dbm,state,radio_status_code
 ```
+
+Same radio-config rationale as DR-1.1.
 
 The Responder CSV is **diagnostic data**: it captures link quality from the Responder's side (request RSSI, error counts) but does not contain ranging distance values, which only the Initiator computes. See `methodology.md` §4.7.
 
@@ -499,28 +505,24 @@ All tunable parameters shall be defined as `#define` constants in a single confi
 
 ```cpp
 // === Firmware Identity ===
-#define FW_VERSION         "1.1-demo"
-#define BOARD_A_ID         "<efuse_mac_initiator>"
-#define BOARD_B_ID         "<efuse_mac_responder>"
+#define FW_VERSION         "0.7-offload-mode"
 #define CSV_SCHEMA_V       1
 
-// === Role Selection ===
-#define ROLE_INITIATOR
-// #define ROLE_RESPONDER
-
-// === Radio Settings (Andersen et al. baseline) ===
-#define RADIO_FREQUENCY    2400.0  // MHz
-#define RADIO_BANDWIDTH    1625.0  // kHz — Semtech labels this as "1600 kHz" (see IR-3.3)
-#define RADIO_SF           6       // Spreading Factor
-#define RADIO_CR           5       // Coding Rate 4/5
-#define RADIO_POWER        12      // dBm; H594 hardware max is approximately 12.5 dBm (see IR-3.8)
+// === Radio Settings (Andersen et al. baseline — FSD §10.3, locked) ===
+// Single source for radio.begin(), the boot banner, and the per-CSV header.
+#define RADIO_FREQ_MHZ     2400.0f // MHz (IR-3.2)
+#define RADIO_BW_KHZ       1625.0f // kHz — Semtech labels this "1600 kHz" (IR-3.3)
+#define RADIO_SF           6       // Spreading Factor (IR-3.4)
+#define RADIO_CR           7       // CR 4/7; RadioLib cr=7 → register 0x03 (IR-3.5)
+#define RADIO_TX_POWER_DBM 12      // dBm; H594 hardware max ≈ 12.5 dBm (IR-3.8)
 #define RADIO_ADDRESS      0x12345678
 
 // === Ranging Loop ===
 #define RANGING_INTERVAL_MS         500
-#define RANGING_TIMEOUT_MS          200
-#define MAX_CONSECUTIVE_TIMEOUTS    3
-#define MAX_INIT_RETRIES            3
+#define MAX_CONSECUTIVE_FAILURES    3
+
+// === Offload Boot Mode ===
+#define MODE_SELECT_WINDOW_MS       3000 // ms to type "OFFLOAD" at boot (FR-5.7)
 
 // === LED Mapping (demo defaults; not research claims) ===
 #define LED_PIN              38
@@ -530,7 +532,7 @@ All tunable parameters shall be defined as `#define` constants in a single confi
 #define DIST_AMBER_THRESH    200.0 // metres
 
 // === Logging ===
-#define SPIFFS_FLUSH_EVERY_CYCLES   10
+#define SPIFFS_FLUSH_EVERY   10    // flush every N ranging cycles ≈ 5 s (FR-5.4)
 ```
 
 ---
@@ -663,3 +665,5 @@ Internal-only files (`research_strategy.md`, `guardrails.md`, `open_decisions.md
 | 1.0 | 13 May 2026 | Initial FSD for June 15 demo. |
 | 1.1 | 15 May 2026 | Cleanup pass against project guardrails and methodology. **§2** Removed the technically-incorrect Faraday-cage claim. **§2, §3.2** Reframed primary use case around outdoor group coordination (hiking/trekking/convoy); motorcyclists noted as forward-looking application only. **§3.3** Softened novelty claim per project novelty discipline; removed unhedged "no prior work" framing; added explicit definition of "infrastructure-free"; explicit statement that the system produces categorical proximity feedback, not localisation. **§5** Added glossary entries for SPIFFS, eFuse MAC, Infrastructure-free. **§6.2** Added `logger.cpp` module reflecting SPIFFS logging. **§6.1** Architectural diagram updated to show SPIFFS storage. **§8.1** Added **FR-1.6** promoting WiFi/BT-off-at-boot from prior OD-2 to a Functional Requirement, with boot-banner self-verification. Updated FR-1.5 to include board ID (from eFuse MAC) and CSV schema version. **§8.5** Expanded with FR-5.4, FR-5.5, FR-5.6 covering SPIFFS on-device CSV logging with flush cadence and download command. **§8.4** Added FR-4.5 making explicit that negative-distance clamping applies only to LED colour mapping. **§9.1, §9.3** Updated BR-1.5 (FAULT state) to include WiFi/BT API failure as a trigger; clarified BOOT-to-RANGING transition includes the WiFi/BT-off check. **§9.2** BR-2.3 reframed: thresholds are demo-tunable, not research claims (cross-references `OD-FSD-1`). **§10.2** Added IR-2.3 covering SPIFFS interface. **§10.3** Corrected IR-3.3 bandwidth: 1625 kHz (Semtech labels this setting as "1600 kHz"); both refer to the same hardware setting. **§11** Major revision: DR-1 updated to expanded Initiator schema (`seq, timestamp_ms, status, raw_distance_m, rssi_dbm, state, consecutive_failures, radio_status_code`) with `raw_distance_m` semantics; DR-2 added for Responder CSV; DR-3 added for schema versioning; DR-4 added pointing to `methodology.md` for full data-capture procedure. **§13** RADIO_BANDWIDTH corrected to 1625.0 kHz; added CSV_SCHEMA_V, BOARD identifiers, SPIFFS_FLUSH_EVERY_CYCLES. **§14** Battery row updated; SPIFFS-full row added; WiFi/BT API failure row added. **§15** AC-4 extended to require Serial and SPIFFS streams to agree; AC-5 motorcycle reference removed; AC-7 cross-referenced to `methodology.md` for full paper-grade campaign. **§16** Battery clarified as Part 2 work; Pro-Range cells noted; bike-mounted GPS comparison added. **§17** OUT-2 (battery) clarified; OUT-8 (cellular/WiFi/BT) updated to reference FR-1.6; OUT-11 added (motorcycle field testing). **§18** Reduced to a pointer; OD-1..OD-4 renamed `OD-FSD-1..OD-FSD-4` in `open_decisions.md`. **§19** Added project document references; noted public-release cross-reference handling. **Top of document:** Added metadata block (Status, Authoritative for, Audience, Version, Last Revised, Owner) following project file convention. **§1.5** Added Versioning subsection. |
 | 1.2 | 15 May 2026 | Targeted clarifications. **§2** "one or more peer pucks" → "paired peer" — scopes the system description to the pair-only Part 1 deployment (OUT-3). **§3.2** Corrected LED display description: only the Initiator displays proximity colours; Responder is passive with cyan ready state (FR-3.4). Symmetric display noted as post-demo polish (`OD-FSD-4`). **DR-1** `raw_distance_m` clarified: RadioLib raw value on SUCCESS (negatives preserved); `NaN` on TIMEOUT/ERROR. **DR-2** `rssi_dbm` clarified: `0` for BOOT/READY/ERROR events when no incoming packet is associated. **DR-1.1** Operator metadata line schema updated: `RUN_DISTANCE_M` renamed to `TRUE_DISTANCE_M` for clarity (the field holds ground truth, not the firmware's measurement); `RUN_ID` added so each CSV is self-identifying without depending on the filename. Mobile-tier values are `NA`. **FR-5.5** SPIFFS filename pattern standardised to `pucklog_<board_id_short>_<boot_seq>.csv` (matching `methodology.md` on `<boot_seq>`). **IR-3.8 + §13** RADIO_POWER clarified: firmware configures 12 dBm; H594 hardware maximum is approximately 12.5 dBm; the 12 dBm setting is slightly conservative.<br><br>**Cross-file note:** This version creates two minor divergences with `methodology.md` (§4.1 operator metadata schema; §4.4 filename pattern using `<board_id>` instead of `<board_id_short>`). Methodology to be aligned in its next pass; FSD is the upstream specification for both fields. |
+| 1.3 | 21 May 2026 | Firmware-alignment correction following the `v0.6-radio-config` tag on `main`. **§10.3 IR-3.5** Coding rate corrected from "4/5 (RadioLib default)" to **4/7** — RadioLib SX128x `begin()` passes `cr=7` by default; `setCodingRate(7)` maps to register `0x03` (`RADIOLIB_SX128X_LORA_CR_4_7`). Confirmed against RadioLib 7.6.0 source. The prior "4/5 default" assumption was incorrect for the SX128x driver (it is correct for SX127x). **§13 Configuration Parameters** `RADIO_CR` example updated from `5 // Coding Rate 4/5` to `7 // Coding Rate 4/7 (RadioLib SX128x default; see IR-3.5)` to match. No other normative requirements changed; this revision aligns the spec with what the firmware has always set on the wire. |
+| 1.4 | 22 May 2026 | v0.7-offload-mode firmware alignment. **§8.1 FR-1.5** Boot banner now includes `MODE_SELECT_WINDOW_MS` and resolved `MODE:` line. **§8.5** `FR-5.6` rewritten: LIST output is now framed (`---BEGIN LIST---` / `---END LIST---`, one `<filename> <size_bytes>` per line) for machine consumption by `tools/offload/offload.py`; DUMP framing unchanged. **FR-5.7** added: OFFLOAD boot mode — 3 s mode-select window at boot; exact-match `OFFLOAD\n` triggers OFFLOAD mode (no log file opened, no ranging, Serial commands only); otherwise NORMAL mode. WiFi/BT fault check precedes the window. **§11.1 DR-1.1** and **§11.2 DR-2.1** firmware-written header line updated to include radio config fields (`FREQ`, `BW`, `SF`, `CR`, `TXPOWER`) — each CSV is now self-describing across firmware versions. **§13** `FW_VERSION` updated to `0.7-offload-mode`; radio `#define` names aligned to actual firmware constants (`RADIO_FREQ_MHZ`, `RADIO_BW_KHZ`, `RADIO_TX_POWER_DBM`); `MODE_SELECT_WINDOW_MS` added; stale `RANGING_TIMEOUT_MS` / `MAX_INIT_RETRIES` / `SPIFFS_FLUSH_EVERY_CYCLES` removed. |
