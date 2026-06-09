@@ -20,9 +20,19 @@ SX1280 radio = new Module(7, 9, 8, 36, spi);
 #define MODE_SELECT_WINDOW_MS 3000 // boot-time window to type "OFFLOAD"
 // Radio config (FSD §10.3 — locked). Single source for radio.begin(), the
 // boot banner, and the per-CSV header line — never edit one without the others.
+//
+// Build modes (must match the paired initiator's build for the same session):
+//   collection — Initiator's OLED is the in-field readout; LED ring not required.
+//                Run once at BW=406.25f and once at BW=1625.0f for the Part 1
+//                two-bandwidth sweep (FSD IR-3.3, methodology §3).
+//   demo       — Initiator's LED ring on; BW=1625.0f only (FSD §10.3, demo scope).
 #define RADIO_FREQ_MHZ           2400.0f  // IR-3.2
+// IR-3.3: the only valid SX1280 values for the Part 1 campaign are 406.25f and
+// 1625.0f. RadioLib rejects 400.0f / 1600.0f with INVALID_BANDWIDTH (-8). Flip
+// this one line and reflash both pucks for each bandwidth sweep run; the CSV
+// header (DR-2.1) self-describes the BW that produced each file.
 #define RADIO_BW_KHZ             1625.0f  // IR-3.3
-#define RADIO_SF                 6        // IR-3.4
+#define RADIO_SF                 8        // IR-3.4 — held constant across both bandwidths
 #define RADIO_CR                 7        // IR-3.5 — RadioLib cr=7 → register 0x03 (4/7)
 #define RADIO_TX_POWER_DBM       12       // IR-3.8
 
