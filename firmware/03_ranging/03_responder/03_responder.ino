@@ -8,11 +8,26 @@
 // T3-S3 V1.2 SPI bus
 SPIClass spi(FSPI);
 
+// RadioLib's getRSSI() reads GET_PACKET_STATUS, which the SX1280 does not
+// populate for ranging exchanges — it logged a constant 0 into rssi_dbm.
+// The ranging-exchange RSSI lives in a dedicated register RadioLib defines
+// but never exposes. SX1280 datasheet V3.2 §14.5.3: RSSI[dBm] = reg(0x0964) − 150.
+class SX1280Ranging : public SX1280 {
+public:
+  using SX1280::SX1280;
+  int getRangingRssiDbm() {
+    uint8_t v = 0;
+    if (readRegister(RADIOLIB_SX128X_REG_RANGING_RSSI, &v, 1) != RADIOLIB_ERR_NONE)
+      return 0; // DR-2 convention: 0 = no reading
+    return (int)v - 150;
+  }
+};
+
 // SX1280: CS=7, DIO1=9, RESET=8, BUSY=36 (Without PA) — IR-2.1
-SX1280 radio = new Module(7, 9, 8, 36, spi);
+SX1280Ranging radio = new Module(7, 9, 8, 36, spi);
 
 // ── Config ────────────────────────────────────────────────────────────────────
-#define FW_VERSION    "0.7-offload-mode"
+#define FW_VERSION    "0.9-field-hardening"
 #define CSV_SCHEMA_V  1
 #define ONBOARD_LED   37
 #define RADIO_ADDRESS 0x12345678
@@ -40,6 +55,7 @@ SX1280 radio = new Module(7, 9, 8, 36, spi);
 enum RespState { RS_BOOT, RS_LISTENING, RS_FAULT };
 RespState currentState = RS_BOOT;
 bool offloadMode = false;
+int  radioReinitFailures = 0;   // BR-3.1: consecutive failed re-inits after ERROR
 
 const char* stateStr(RespState s) {
   switch (s) {
@@ -53,14 +69,26 @@ const char* stateStr(RespState s) {
 // ── SPIFFS logging ─────────────────────────────────────────────────────────────
 File     logFile;
 bool     spiffsOk  = false;
+bool     spiffsWriteFailed = false; // latched on first short write (partition full)
 uint32_t seqNum    = 0;
 char     boardIdShort[7];
 char     logFilename[40];
+char     csvHeader1[192];   // DR-2.1 header line 1 — written to SPIFFS and Serial
 
+// Write one CSV line to Serial and SPIFFS — FR-5.1, FR-5.4.
+// A SPIFFS short write (partition full / FS error) fails LOUDLY: per FSD
+// §14.1 on-device logging halts and Serial continues — but the operator must
+// be told, or a field session silently records nothing on-device. Detection
+// is bounded by the stdio buffer ≈ one flush interval (≤ ~10 rows).
 void logLine(const char* line) {
   Serial.println(line);
-  if (spiffsOk && logFile) {
-    logFile.println(line);
+  if (spiffsOk && logFile && !spiffsWriteFailed) {
+    if (logFile.println(line) < strlen(line) + 2) { // println appends \r\n
+      spiffsWriteFailed = true;
+      digitalWrite(ONBOARD_LED, HIGH); // solid ON = SPIFFS fail (FAULT blinks)
+      Serial.println("!!! SPIFFS WRITE FAILED — on-device logging STOPPED (partition full?).");
+      Serial.println("!!! Serial CSV continues. Offload + FORMAT, then power-cycle.");
+    }
   }
 }
 
@@ -127,7 +155,12 @@ void processSerialCommands() {
         String fname = cmd.substring(7);
         fname.trim();
         if (!fname.startsWith("/")) fname = "/" + fname;
-        Serial.println(SPIFFS.remove(fname) ? "Deleted." : "Delete failed.");
+        // Deleting the file the session is appending to would corrupt it.
+        if (!offloadMode && logFile && fname.equals(logFilename)) {
+          Serial.println("Refusing: that file is the active session log.");
+        } else {
+          Serial.println(SPIFFS.remove(fname) ? "Deleted." : "Delete failed.");
+        }
 
       } else if (cmd == "FORMAT") {
         Serial.println("Formatting SPIFFS...");
@@ -179,15 +212,16 @@ bool createLogFile() {
   // Includes radio config so each CSV is self-describing across firmware
   // versions — even if SPIFFS holds files written by older firmware with
   // different radio settings, the per-file header is authoritative.
+  // BW uses %.2f: %.1f printed 406.25 as "406.2", mislabelling the
+  // campaign's key comparison parameter (IR-3.3).
   uint64_t mac = ESP.getEfuseMac();
-  char h[192];
-  snprintf(h, sizeof(h),
+  snprintf(csvHeader1, sizeof(csvHeader1),
     "# CSV_SCHEMA_V=%d, FW=%s, BOARD_ID=0x%04X%08X, ROLE=RESPONDER, BOOT_MS=0, "
-    "FREQ=%.1f, BW=%.1f, SF=%d, CR=%d, TXPOWER=%d",
+    "FREQ=%.1f, BW=%.2f, SF=%d, CR=%d, TXPOWER=%d",
     CSV_SCHEMA_V, FW_VERSION,
     (uint16_t)(mac >> 32), (uint32_t)mac,
     RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR, RADIO_TX_POWER_DBM);
-  logFile.println(h);
+  logFile.println(csvHeader1);
 
   // Column header — DR-2
   logFile.println("seq,timestamp_ms,event,rssi_dbm,state,radio_status_code");
@@ -228,6 +262,15 @@ bool pollForOffloadCommand() {
   return false;
 }
 
+// ── Radio init ────────────────────────────────────────────────────────────────
+bool initRadio() {
+  spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
+  if (radio.begin(RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR) != RADIOLIB_ERR_NONE)
+    return false;
+  // begin() default is 10 dBm — must set explicitly to honour IR-3.8.
+  return radio.setOutputPower(RADIO_TX_POWER_DBM) == RADIOLIB_ERR_NONE;
+}
+
 // ── FAULT — BR-1.5 ────────────────────────────────────────────────────────────
 void enterFault(const char* reason) {
   Serial.print("FAULT: "); Serial.println(reason);
@@ -248,17 +291,12 @@ void setup() {
   // SPIFFS mount (no file opened yet — see createLogFile() for NORMAL mode).
   bool spiffsMounted = mountSpiffs();
 
-  // FR-1.6: WiFi + BT off. The FAULT path stays ahead of the mode-select window —
-  // a faulty puck must not sit waiting 3 s for OFFLOAD.
+  // FR-1.6: WiFi + BT off before SX1280 init. The result is printed in the
+  // banner BEFORE any FAULT halt — the operator must see WIFI_OFF=0/BT_OFF=0
+  // on record (canonical verification, methodology §1.1), not just a FAULT
+  // line. The FAULT path still precedes the mode-select window (FR-5.7).
   bool wifiOff = WiFi.mode(WIFI_OFF);
   bool btOff   = btStop();
-  if (!wifiOff || !btOff) {
-    char reason[48];
-    snprintf(reason, sizeof(reason), "WiFi/BT off failed (W=%d, BT=%d)", wifiOff, btOff);
-    enterFault(reason);
-  }
-
-  if (!spiffsMounted) enterFault("SPIFFS init failed.");
 
   // Boot banner part 1
   uint64_t mac = ESP.getEfuseMac();
@@ -269,9 +307,16 @@ void setup() {
   Serial.print  ("CSV_SCHEMA_V: "); Serial.println(CSV_SCHEMA_V);
   Serial.print  ("WIFI_OFF: ");     Serial.println(wifiOff ? 1 : 0);
   Serial.print  ("BT_OFF: ");       Serial.println(btOff   ? 1 : 0);
-  Serial.printf ("RADIO: %.1f MHz, BW %.1f kHz, SF %d, CR 4/%d, %d dBm\n",
+  Serial.printf ("RADIO: %.1f MHz, BW %.2f kHz, SF %d, CR 4/%d, %d dBm\n",
                  RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR, RADIO_TX_POWER_DBM);
   Serial.print  ("MODE_SELECT_WINDOW_MS: "); Serial.println(MODE_SELECT_WINDOW_MS);
+
+  if (!wifiOff || !btOff) {
+    char reason[48];
+    snprintf(reason, sizeof(reason), "WiFi/BT off failed (W=%d, BT=%d)", wifiOff, btOff);
+    enterFault(reason);
+  }
+  if (!spiffsMounted) enterFault("SPIFFS init failed.");
 
   // Mode-select window — exact-match "OFFLOAD" line picks OFFLOAD, else NORMAL.
   offloadMode = pollForOffloadCommand();
@@ -280,6 +325,8 @@ void setup() {
     Serial.println("SPIFFS_FILE: <none>");
     Serial.println("MODE: OFFLOAD");
     Serial.println("-----------------------");
+    Serial.printf("[SPIFFS] free: %u bytes\n",
+                  (unsigned)(SPIFFS.totalBytes() - SPIFFS.usedBytes()));
     return; // loop() runs only the Serial command processor — no radio, no log.
   }
 
@@ -289,18 +336,22 @@ void setup() {
   Serial.println("MODE: NORMAL");
   Serial.println("-----------------------");
 
+  // Capacity check — a nearly-full partition silently shortens the session
+  // (FSD §14.1 SPIFFS-full row); surface it at boot while the laptop is on.
+  size_t freeBytes = SPIFFS.totalBytes() - SPIFFS.usedBytes();
+  Serial.printf("[SPIFFS] free: %u bytes\n", (unsigned)freeBytes);
+  if (freeBytes < 100 * 1024)
+    Serial.println("[WARN] SPIFFS free < 100 KB — offload + FORMAT before a field session.");
+
   if (!spiffsOk) enterFault("Log file open failed.");
 
-  spi.begin(5, 3, 6, 7); // SCK, MISO, MOSI, CS
-  if (radio.begin(RADIO_FREQ_MHZ, RADIO_BW_KHZ, RADIO_SF, RADIO_CR) != RADIOLIB_ERR_NONE)
-    enterFault("Radio init failed.");
-  // begin() default is 10 dBm — must set explicitly to honour IR-3.8.
-  if (radio.setOutputPower(RADIO_TX_POWER_DBM) != RADIOLIB_ERR_NONE)
-    enterFault("setOutputPower failed.");
+  if (!initRadio()) enterFault("Radio init failed.");
 
   Serial.println("[OK] Radio initialised");
 
-  // Column header to Serial
+  // Header line 1 + column header to Serial — the serial capture is then
+  // self-describing like the SPIFFS file, and AC-4 stream agreement is checkable.
+  Serial.println(csvHeader1);
   Serial.println("seq,timestamp_ms,event,rssi_dbm,state,radio_status_code");
 
   // Log BOOT and READY events — DR-2
@@ -334,17 +385,34 @@ void loop() {
 
   seqNum++;
   char line[80];
+  bool radioError = false;
 
   if (radioState == RADIOLIB_ERR_NONE) {
     // FR-3.3: log RANGING_REQ with RSSI — DR-2
     snprintf(line, sizeof(line), "%lu,%lu,RANGING_REQ,%d,LISTENING,0",
       (unsigned long)seqNum, (unsigned long)millis(),
-      (int)radio.getRSSI());
+      radio.getRangingRssiDbm()); // ranging RSSI register, not getRSSI()
   } else {
+    radioError = true;
     snprintf(line, sizeof(line), "%lu,%lu,ERROR,0,LISTENING,%d",
       (unsigned long)seqNum, (unsigned long)millis(), radioState);
   }
 
   logLine(line);
   flushLog();
+
+  // BR-3.1: on ERROR, attempt one radio re-init; 3 consecutive failed
+  // re-inits → FAULT. The delay bounds the row-spam rate (and SPIFFS fill
+  // rate) if a wedged radio returns errors immediately.
+  if (radioError) {
+    if (initRadio()) {
+      radioReinitFailures = 0;
+      Serial.println("[WARN] radio error — re-init OK (BR-3.1)");
+    } else if (++radioReinitFailures >= 3) {
+      enterFault("Radio re-init failed x3");
+    }
+    delay(250);
+  } else {
+    radioReinitFailures = 0;
+  }
 }
