@@ -16,7 +16,10 @@ Workflow:
      ---BEGIN LIST--- / ---END LIST--- markers).
   5. DUMP each file; capture the body byte-exact between
      ---BEGIN <name>--- and ---END <name>--- markers.
-  6. Write a manifest.txt summarising the banner and per-file outcomes.
+  6. Validate each size-verified file against the methodology §4 schema
+     (validate_csv.py); a file that fails is marked INVALID and blocks the
+     post-offload FORMAT offer.
+  7. Write a manifest.txt summarising the banner and per-file outcomes.
 
 Usage:
   python offload.py --port /dev/ttyACM0
@@ -58,6 +61,15 @@ except ImportError:
 ST_OK = "OK"
 ST_SIZE_MISMATCH = "SIZE_MISMATCH"
 ST_SKIPPED = "SKIPPED"
+ST_INVALID = "INVALID"  # downloaded byte-exact but failed schema validation
+
+# Optional structural validator (methodology §4 schema). Size alone can't
+# catch truncated rows or schema drift; a file must pass validation too
+# before the post-offload FORMAT is offered.
+try:
+    from validate_csv import validate_file
+except ImportError:
+    validate_file = None
 
 
 # ── Serial I/O helpers ──────────────────────────────────────────────────────
@@ -231,22 +243,30 @@ def dump_file(ser, fname, expected_size, out_path, verbose,
             maybe_log_lines()
 
     # Phase 3b: read until END marker. Body is the slice [body_start:end_idx].
-    # 30 s outer is generous: a 50 KB file at CDC's ~10 KB/s effective is ~5 s.
-    deadline = time.monotonic() + end_timeout_s
+    # Two timeouts: an overall deadline scaled to the file size (effective
+    # USB-CDC throughput is ~5-10 KB/s worst case, so a fixed 30 s cap made
+    # files over ~300 KB permanently un-offloadable), plus a 10 s inactivity
+    # cut-off so a stalled link still fails fast.
+    eff_timeout_s = max(end_timeout_s, expected_size / 5000.0 + 15.0)
+    deadline = time.monotonic() + eff_timeout_s
+    last_rx = time.monotonic()
     while True:
         idx = buf.find(end_marker, body_start)
         if idx != -1:
             body = bytes(buf[body_start:idx])
             break
-        if time.monotonic() > deadline:
+        now = time.monotonic()
+        if now > deadline or (now - last_rx) > 10.0:
             # Save whatever we have — the operator may want a partial CSV.
             print(f"Warning: no END marker for {fname} within "
-                  f"{end_timeout_s} s — saving partial.", file=sys.stderr)
+                  f"{eff_timeout_s:.0f} s (or 10 s of silence) — saving partial.",
+                  file=sys.stderr)
             body = bytes(buf[body_start:])
             break
         chunk = ser.read(256)
         if chunk:
             buf.extend(chunk)
+            last_rx = time.monotonic()
             maybe_log_lines()
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -310,6 +330,13 @@ def _split_csv(text):
     return [p.strip() for p in text.split(",")]
 
 
+def _ist_now():
+    """Current date-time in IST, independent of the laptop's local timezone.
+    The methodology promises 'today's IST date auto-fills' — using the local
+    clock's date breaks that on a UTC-configured laptop near midnight."""
+    return datetime.now(timezone.utc) + IST_OFFSET
+
+
 def _ist_to_utc_iso(ist_str):
     """Convert IST timestamp → 'YYYY-MM-DDTHH:MM:SSZ' (UTC).
 
@@ -337,7 +364,7 @@ def _ist_to_utc_iso(ist_str):
         for fmt in ("%H:%M:%S", "%H:%M"):
             try:
                 t = datetime.strptime(s, fmt).time()
-                dt_ist = datetime.combine(datetime.now().date(), t)
+                dt_ist = datetime.combine(_ist_now().date(), t)
                 break
             except ValueError:
                 continue
@@ -402,7 +429,7 @@ def prompt_session_metadata():
             print("Params missing — one or more fields are empty. Re-enter.")
             continue
         if date.lower() == "today":
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = _ist_now().strftime("%Y-%m-%d")
         session_id = f"{date}_{site}_{s_num}"
         return {"SITE": site, "TIER": tier, "DATE": date, "S_NUM": s_num,
                 "SESSION_ID": session_id}
@@ -750,6 +777,31 @@ def main():
                     print(f"{status} (got {actual}, expected {expected})")
                 results[i] = (fname, expected, actual, status)
 
+        # Structural validation (methodology §4 / FSD DR-1/DR-2) of every
+        # size-verified file, BEFORE metadata insertion and before FORMAT is
+        # offered. A file that fails is kept on disk but marked INVALID so
+        # the puck's copy is not wiped. Warnings never block.
+        if validate_file is not None:
+            for i, (fname, expected, actual, status) in enumerate(results):
+                if status != ST_OK:
+                    continue
+                p = session_dir / fname.lstrip("/")
+                errors, warnings = validate_file(p)
+                for w in warnings:
+                    print(f"  [validate:warn] {p.name}: {w}")
+                if errors:
+                    for e in errors[:10]:
+                        print(f"  [validate:ERROR] {p.name}: {e}",
+                              file=sys.stderr)
+                    if len(errors) > 10:
+                        print(f"  [validate:ERROR] {p.name}: "
+                              f"...and {len(errors) - 10} more",
+                              file=sys.stderr)
+                    results[i] = (fname, expected, actual, ST_INVALID)
+        else:
+            print("Note: validate_csv.py not found next to offload.py — "
+                  "schema validation skipped.", file=sys.stderr)
+
         any_bad = any(r[3] != ST_OK for r in results)
 
         # Apply operator metadata + rename for every file that has cached
@@ -760,7 +812,9 @@ def main():
             print()
             print("Applying operator metadata (line 2) + renaming files...")
             for fname, _, _, status in results:
-                if status == ST_SKIPPED or fname not in file_meta_by_fname:
+                # Only OK files get the rename — an INVALID/partial file keeps
+                # its raw pucklog_ name so it stands out for human review.
+                if status != ST_OK or fname not in file_meta_by_fname:
                     continue
                 safe_name = fname.lstrip("/")
                 out_path = session_dir / safe_name
@@ -780,7 +834,7 @@ def main():
                        file_meta_by_fname=file_meta_by_fname,
                        renamed_by_fname=renamed_by_fname)
 
-        counts = {ST_OK: 0, ST_SIZE_MISMATCH: 0, ST_SKIPPED: 0}
+        counts = {ST_OK: 0, ST_SIZE_MISMATCH: 0, ST_SKIPPED: 0, ST_INVALID: 0}
         bytes_written = 0
         for _, _, actual, status in results:
             counts[status] = counts.get(status, 0) + 1
@@ -788,7 +842,7 @@ def main():
 
         print(f"Done. {len(results)} files, {bytes_written} bytes written. "
               f"OK={counts[ST_OK]} MISMATCH={counts[ST_SIZE_MISMATCH]} "
-              f"SKIPPED={counts[ST_SKIPPED]}")
+              f"SKIPPED={counts[ST_SKIPPED]} INVALID={counts[ST_INVALID]}")
 
         # Offer to FORMAT the SPIFFS on the puck only if every file came back
         # OK — refuse to wipe data we couldn't fully retrieve. Require literal
