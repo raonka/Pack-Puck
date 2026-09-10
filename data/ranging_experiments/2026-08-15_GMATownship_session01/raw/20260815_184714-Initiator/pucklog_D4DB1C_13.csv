@@ -1,0 +1,2 @@
+# CSV_SCHEMA_V=1, FW=0.9-field-hardening, BOARD_ID=0x541BBDD4DB1C, ROLE=INITIATOR, BOOT_MS=0, FREQ=2400.0, BW=1625.00, SF=8, CR=7, TXPOWER=12
+seq,timestamp_ms,status,raw_distance_m,rssi_dbm,state,consecutive_failures,radio_status_code

@@ -1,0 +1,26 @@
+timestamp_utc: 2026-07-13T02:10:10.671819+00:00
+port: COM8
+baud: 115200
+
+[BANNER]
+FW_VERSION: 0.9-field-hardening
+BOARD_ID: 0x541BBDD4DB1C
+ROLE: INITIATOR
+CSV_SCHEMA_V: 1
+WIFI_OFF: 1
+BT_OFF: 1
+RADIO: 2400.0 MHz, BW 1625.00 kHz, SF 8, CR 4/7, 12 dBm
+MODE_SELECT_WINDOW_MS: 3000
+SPIFFS_FILE: <none>
+MODE: OFFLOAD
+
+[FILES]
+/pucklog_D4DB1C_1.csv  expected=5282  actual=5282  status=OK
+/pucklog_D4DB1C_2.csv  expected=5282  actual=5282  status=OK
+/pucklog_D4DB1C_3.csv  expected=4430  actual=4430  status=OK
+/pucklog_D4DB1C_4.csv  expected=4522  actual=4522  status=OK
+/pucklog_D4DB1C_5.csv  expected=3657  actual=3657  status=OK
+/pucklog_D4DB1C_6.csv  expected=3230  actual=3230  status=OK
+/pucklog_D4DB1C_7.csv  expected=651  actual=651  status=OK
+/pucklog_D4DB1C_8.csv  expected=4521  actual=4521  status=OK
+/pucklog_D4DB1C_9.csv  expected=4091  actual=4091  status=OK

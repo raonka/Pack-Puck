@@ -33,15 +33,18 @@ open field — wherever both devices are within radio range of each other.
 4. Flash Initiator firmware to Board 1, Responder firmware to Board 2
 5. Open Serial Monitor at 115200 baud
 
-See `docs/FIRMWARE_PLAN.md` for the complete step-by-step guide.
+See `docs/FSD.md` §13 for the full configuration parameter set.
 
 ## Documentation
 
 | Document | Purpose |
 |---|---|
-| `docs/FSD.md` | Functional specification — system behaviour, requirements, acceptance criteria |
-| `docs/FIRMWARE_PLAN.md` | Firmware bring-up plan — phased build guide from first boot to demo |
-| `docs/State.md` | Current project state — hardware inventory, decisions, milestones |
+| `docs/FSD.md` | Functional specification — system behaviour, requirements, interfaces, acceptance criteria |
+| `data/README.md` | Field datasets — sites, conditions, sessions, and how to reproduce the analysis |
+| `tools/qc_session.py` | Session QC tool — generates every report and figure under `data/analysis/` |
+
+The experimental protocol (`Methodology.md`) is published with the Part 1 preprint;
+see `data/README.md` for availability before then.
 
 
 ## License

@@ -1,0 +1,182 @@
+SESSION_ID:            2026-07-13-ParadeGround-P1
+STATUS:                PILOT -- NOT CAMPAIGN DATA. Excluded from every Part 1 result.
+START_UTC:             not recorded                           # first offload ran 2026-07-12T23:54:33Z
+START_LOCAL:           not recorded                           # = 2026-07-13 05:24 IST
+END_UTC:               not recorded                           # final offload ran 2026-07-13T02:10:10Z
+                       (= 07:40 IST). Session ran early morning; sunrise was 05:49 IST.
+SITE:                  Parade Ground, Secunderabad, Hyderabad, Telangana
+SITE_COORDINATES:      17.444183344286266, 78.49282716347348  (operator-supplied)
+SITE_NOTES:            Open parade ground. Long straight LOS run, no marker line
+                       surveyed -- distances paced/estimated, not tape-surveyed.
+                       This is the reason no signed-error figure is reported below.
+INDOOR_OUTDOOR:        outdoor
+
+TEMP_C:                26                                     # phone weather, 07:12 IST
+HUMIDITY_PCT:          73                                     # dew point 21 C
+WEATHER:               Partly cloudy; feels like 28 C; high 33 / low 25
+WIND:                  21 kph from W                          # windiest of the three outings;
+                       well below the methodology 6.1 "strong" abort threshold
+RF_ENV_NOTES:          not recorded. Pressure 1007 hPa, visibility 16 km, UV 1,
+                       AQI 40 (good), rain for the day <1.3 mm.
+ENV_SOURCE:            environment/Screenshot_20260713-071230..071245.png (4 captures,
+                       all at 07:12 IST, between the two offloads)
+
+TIER:                  pilot -- range progression, single bandwidth
+SWEEP_ORDER:           1625 only
+BW_SWEEP_1:            1625 kHz
+BW_SWEEP_2:            n-a
+MARKER_SET:            8 positions, 25 m then 50 m spacing (operator-confirmed 2026-09-11)
+DISTANCES_TESTED:      25,50,100,150,200,250,300,350
+
+RUNS:                  1
+  RUN range_progression -> boots b1..b9, one file per position, ascending 25 -> 350 m.
+                           b7 is ABSENT from the offload (see FILE DISPOSITIONS).
+
+QC:                    not run. qc_session.py expects a tape-surveyed marker line and a
+                       static/stop-and-go run structure; neither applies here. Medians
+                       below are computed directly from the SUCCESS rows.
+
+MOUNT_SETUP_USED:      not recorded
+MOUNT_HEIGHT_CM:       not recorded
+MOUNT_TYPE_A / _B:     not recorded
+ANTENNA_ORIENTATION_A / _B: not recorded
+CARRY_METHOD:          n-a (static positions)
+
+GROUND_TRUTH_METHOD:   NONE. Distances were not tape-surveyed on this outing. The
+                       position labels above are nominal, operator-stated targets.
+GROUND_TRUTH_TOLERANCE: n-a -- no ground truth. NO SIGNED-ERROR FIGURE IS REPORTED OR
+                       DERIVABLE FROM THIS SESSION. The medians below demonstrate range
+                       progression and maximum reach only.
+CONE_PLACEMENT_FILE:   n-a
+SITE_PHOTOS:           none
+
+INITIATOR_BOARD_ID:    0x541BBDD4DB1C
+RESPONDER_BOARD_ID:    not offloaded this session
+INITIATOR_USB_POWER_SOURCE / RESPONDER_...: not recorded
+FW_VERSION:            0.9-field-hardening                    (from offload banner)
+CSV_SCHEMA_VERSION:    1                                      (from offload banner)
+RADIO (banner):        2400.0 MHz, BW 1625.00 kHz, SF 8, CR 4/7, 12 dBm
+WIFI_OFF / BT_OFF:     1 / 1                                  (banner self-report, FR-1.6)
+FILTER_IN_FIRMWARE:    none
+RAW_LOGGING:           true
+DISTANCE_CLAMPING_IN_LOG: false
+PUCK_BOOT_UTC:         not written                            # CSV line-2 operator metadata absent
+OFFLOAD_SESSIONS:      20260713_052019-Initiator (2026-07-12T23:54:33Z) -- SEE D1.
+                       NOT PUBLISHED except for one file; see the SF6 range-walk
+                       directory.
+                       20260713_073950-Initiator (2026-07-13T02:10:10Z, boots 1-9
+                       less b7) -- the run described by this log.
+
+---------------------------------------------------------------------------
+PURPOSE
+---------------------------------------------------------------------------
+
+Open-air test run to establish (a) that ranging worked at all beyond the bench, and
+(b) the practical maximum working range at 1625 kHz / SF8. It is the first outdoor
+outing of the project and it is what set the 300 m ceiling later used for the
+GMA township marker line.
+
+Its second purpose was a spreading-factor comparison, SF6 against SF8. That
+comparison is NOT contained in this session -- see D2.
+
+---------------------------------------------------------------------------
+RESULT -- RANGE PROGRESSION (medians of SUCCESS rows)
+---------------------------------------------------------------------------
+
+  file                  N    median m   nominal position
+  pucklog_D4DB1C_1     120      25.1    25
+  pucklog_D4DB1C_2     120      46.7    50
+  pucklog_D4DB1C_3      99      91.8    100
+  pucklog_D4DB1C_4     100     158.7    150
+  pucklog_D4DB1C_5      79     219.4    200
+  pucklog_D4DB1C_6      68     278.4    250
+  pucklog_D4DB1C_8      98     313.1    300
+  pucklog_D4DB1C_9      90     365.3    350
+
+MAXIMUM REACH: 365.3 m median, at the furthest position attempted. Ranging did not
+fail at the far end -- the session ended because the ground ran out, not because the
+link did. 350 m was the last position tried, not a measured limit.
+
+The medians are monotonic across all eight positions with no reversals. Attempt
+counts fall from 120 to 68-98 at the longer positions.
+
+Read this as a demonstration of range progression, NOT as an accuracy result: without
+a surveyed ground truth the apparent offsets carry no meaning.
+
+---------------------------------------------------------------------------
+DEVIATIONS FROM PROTOCOL
+---------------------------------------------------------------------------
+
+D1  OFFLOAD 20260713_052019 IS AN ACCUMULATED FLASH BACKLOG, NOT THIS SESSION.
+    SPIFFS had never been formatted, so the 05:24 IST offload pulled down 18 files
+    spanning three firmware eras rather than that morning's work:
+
+      boots 1-5    FW 0.7-offload-mode, SF6   -> recorded before 2026-06-10
+      boots 6-15   FW 0.7-offload-mode, SF8   -> recorded 2026-06-10 to 2026-06-22
+      boots 16-18  FW 0.9-field-hardening     -> the only files that could be 13 July
+
+    Dating basis: SF8 was locked in firmware on 2026-06-10 and v0.9 replaced v0.7 on
+    2026-06-22 (both from the firmware commit history). The offload banner shows the
+    board running v0.9 at 05:24 IST on 13 July, so every FW 0.7 file necessarily
+    predates 22 June. Boot indices run 1..18 unbroken, confirming no FORMAT separated
+    them.
+
+    Compounding this, 14 of the 18 files contain ZERO successful readings and three
+    more contain only negative distances. Exactly one file is usable.
+
+    CONSEQUENCE: the four files in that offload carrying operator metadata read
+    SESSION_ID=2026-07-13_ParadeGTest_S1. That label was typed at offload time on
+    13 July and is WRONG -- those files were recorded weeks earlier. The label is left
+    in place because the raw CSVs are never edited; this note is the correction.
+
+    DISPOSITION: not published, except the single usable file, which is filed
+    separately as an undated SF6 range walk with its own README.
+
+D2  NO SF6 DATA EXISTS FROM THIS OUTING. The intended SF6-vs-SF8 comparison is not in
+    this session. Every file recorded on 13 July is SF8, and no SF6 file exists on
+    v0.9 firmware anywhere in the project. The SF6 recordings are all v0.7 and predate
+    22 June. A SF6-vs-SF8 comparison is therefore CROSS-SESSION, separated by a
+    firmware change and several weeks, and is not a same-day controlled A/B.
+
+D3  NO GROUND TRUTH. Distances were not tape-surveyed. See GROUND_TRUTH_METHOD.
+
+D4  BOOT 7 MISSING. pucklog_D4DB1C_7.csv is absent from the 073950 offload. Cause not
+    recorded. The gap sits between the 250 m and 300 m positions.
+
+D5  NO ENVIRONMENTAL LOG DURING THE RUN. One weather capture at 07:12 IST covers the
+    session; conditions at the start (05:20 IST, before sunrise) were not recorded.
+
+---------------------------------------------------------------------------
+FILE DISPOSITIONS
+---------------------------------------------------------------------------
+
+raw/20260713_073950-Initiator/  -- PUBLISHED, this session
+  pucklog_D4DB1C_1.csv   25 m nominal   N=120   OK
+  pucklog_D4DB1C_2.csv   50 m nominal   N=120   OK
+  pucklog_D4DB1C_3.csv   100 m nominal  N=99    OK
+  pucklog_D4DB1C_4.csv   150 m nominal  N=100   OK
+  pucklog_D4DB1C_5.csv   200 m nominal  N=79    OK (short)
+  pucklog_D4DB1C_6.csv   250 m nominal  N=68    OK (short)
+  pucklog_D4DB1C_8.csv   300 m nominal  N=98    OK
+  pucklog_D4DB1C_9.csv   350 m nominal  N=90    OK
+  pucklog_D4DB1C_7.csv   ABSENT from the offload (D4)
+
+raw/20260713_052019-Initiator/ -- NOT PUBLISHED (D1). 17 of 18 files are empty, are
+  garbage, or predate this outing. The one usable file is published separately.
+
+---------------------------------------------------------------------------
+TODO -- AWAITING ISHAAN
+---------------------------------------------------------------------------
+
+T1  Mount setup, mount height, mount types, antenna orientation and USB power sources
+    for this outing -- none were recorded. Recorded as not-captured unless recoverable.
+T2  Whether the 350 m position was the furthest the site allowed, or simply the last
+    one tried. Affects whether 365 m can be described as a site limit or as an
+    un-hit ceiling. Stated conservatively above as "not a measured limit".
+T3  Cause of the missing boot 7 (D4), if recalled.
+
+NOTES: This log was reconstructed on 2026-09-11 from the raw CSVs, the offload
+manifests, the firmware commit history and the operator's account. It does not follow
+the methodology 6.3 template as closely as the GMA township logs because no session
+log was written in the field on the day; fields that were never recorded say so
+explicitly rather than being inferred.

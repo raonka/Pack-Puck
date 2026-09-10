@@ -3,8 +3,8 @@
 **Status:** Active. Living document for the June 15, 2026 demo and the Part 1 data campaign.
 **Authoritative for:** System behaviour, requirements, interfaces, data formats, and acceptance criteria for the Part 1 deliverable.
 **Audience:** Internal during development; public on Part 1 submission alongside `methodology.md`.
-**Document Version:** 1.5
-**Last Revised:** 23 May 2026
+**Document Version:** 1.8
+**Last Revised:** 22 August 2026
 **Owner:** Ishaan
 
 ---
@@ -52,18 +52,18 @@ Each puck continuously measures its distance to its paired peer, in metres, usin
 ### 3.2 Primary Use Case (Demo)
 Two members of a small outdoor group — e.g., two hikers, two trekkers in a guided group, or two members of a convoy — are each associated with a puck. One puck operates as Initiator (the active device whose LED ring reflects proximity to its peer); the other operates as Responder (passive, displays the cyan ready-state per FR-3.4 and does not show distance). While the pair is together, the Initiator displays green. As they separate, it transitions through amber to red. When they regroup, it returns to green. No screens to check, no smartphone needed, no cellular signal required.
 
-Part 1 evaluates Initiator-side proximity display only. A symmetric display (both pucks showing distance simultaneously) is achievable but is post-demo polish, not a Part 1 deliverable; see `open_decisions.md` `OD-FSD-4`.
+Part 1 evaluates Initiator-side proximity display only. A symmetric display (both pucks showing distance simultaneously) is achievable but is post-demo polish, not a Part 1 deliverable; it remains an open post-demo decision.
 
 Motorcyclists are a forward-looking application for the system. Motorcycle field testing under vibration and at vehicular speeds is deferred (see `OUT-11`); motorcyclists are not the primary evaluated use case in Part 1.
 
 ### 3.3 Research Framing
-The demo and the accompanying data collection campaign support Contribution 1 of the Part 1 arXiv preprint: characterisation of SX1280 Time-of-Flight ranging in a mobile, peer-to-peer, infrastructure-free setting.
+The demo and the accompanying data-collection campaign support **Part 1**, a systems + measurement + reproducibility preprint presenting Pack Pucks as an open, low-cost, reproducible platform for SX1280 peer-to-peer ToF ranging research. Part 1's internal contributions are C1–C4: the open commodity-hardware platform itself, a matched-bandwidth field characterisation across static and semi-mobile stop-and-go conditions, a filter and stability analysis, and a failure-mode analysis.
 
-Published characterisations of SX1280 ToF ranging have primarily evaluated static, anchor-based, or infrastructure-supported configurations (Andersen et al. 2020; arXiv 2509.23125). To the best of our knowledge, there is limited published characterisation of low-cost SX1280 peer-to-peer proximity classification when one or both endpoints are mobile and no fixed ranging infrastructure is used. Pack Pucks addresses this gap.
+Prior SX1280 ToF ranging work spans static dev-kit characterisation (Andersen et al. 2020; Wolf et al. 2019, a static 406.25-vs-1625 kHz comparison on an unreleased dev-kit rig), semi-mobile outdoor ranging with one fixed and one walking node at 406 kHz only (Müller et al. 2021), anchor-based 2D positioning with offline calibration (Gottschalk et al. 2026), and a custom-hardware energy-efficient localisation framework (Albinsaid et al. 2025). Open SX1280 platforms exist for communication experiments (Salimzhanova et al. 2024) but not for ranging. Two gaps remain: (1) no open, commodity-hardware, reproducible platform exists for SX1280 peer-to-peer ToF ranging research with public datasets; and (2) no prior work compares SX1280 ranging across bandwidths (406.25 vs 1625 kHz) under matched semi-mobile conditions — Wolf's comparison is static, Müller's walking is single-bandwidth. Pack Pucks addresses both; the static comparison replicates Wolf, the semi-mobile stop-and-go comparison extends it. Both-endpoints-mobile peer-to-peer ranging is deferred to future work.
 
 **"Infrastructure-free"** in this context means no fixed radio anchors, GPS receivers, cellular base stations, cloud services, smartphones, or pre-deployed communication infrastructure are part of the deployed system. Experimental tools used only during measurement — tripods, cones, tape measures, laptops, distance markers — are not part of the deployed system and are permitted during data collection.
 
-The system produces **categorical proximity feedback** (green / amber / red), not precise localisation: there is no coordinate output, no heading, and no fused position estimate. Filter behaviour, indoor multipath effects, and timeout/failure characteristics are reported as part of the characterisation; see `methodology.md` for the experimental protocol.
+The system produces **categorical proximity feedback** (green / amber / red), not precise localisation: there is no coordinate output, no heading, and no fused position estimate. Filter behaviour and timeout/failure characteristics are reported as part of the characterisation; see `methodology.md` for the experimental protocol. (Indoor multipath characterisation is deferred to future work, outside Part 1 scope.)
 
 ---
 
@@ -233,6 +233,16 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **FR-2.1** — The Initiator shall perform one ranging cycle every 500 ms (±50 ms tolerance).
 
+> **AMENDMENT (22 August 2026) — measured cadence supersedes the 500 ms target.** The firmware applies no software pacing; the blocking RadioLib `range()` call sets the cycle time, so the 500 ms ± 50 ms figure above is a design target that the as-built system does not meet. Field measurement at **1625 kHz / SF8** gives a cycle time of **≈ 655 ms (≈ 1.53 Hz)** for a successful exchange — per-file median 655–656 ms, min/max 654–662 ms, stable across every logged file of the 15 August 2026 GMA township outing (`tools/qc_session.py` v1.0.0). The measured cadence governs all Part 1 data and demo work; the 500 ms target is retained above as the original specification, not as the operating figure.
+>
+> *Derived figures shift with it:* FR-5.4's flush every 10 cycles is ≈ 6.6 s of data at risk rather than ≈ 5 s; BR-3.2's 3 consecutive timeouts span ≈ 2.0 s rather than 1.5 s; NFR-5's "within 1 cycle" is ≈ 655 ms.
+>
+> *One caveat.* ≈ 655 ms is the **successful**-exchange cycle time. A cycle that receives no response runs out RadioLib's fixed 10 s ranging guard (≈ 10.6 s measured), so cadence degrades sharply wherever timeouts are frequent; both GMA township outings recorded zero timeouts, which is why the figures are so tight there.
+>
+> **406.25 kHz measured (22 August 2026) — TODO-VERIFY closed.** The 22 August 2026 GMA township outing ran the 406.25 kHz sweep and gives **≈ 686 ms per successful cycle (≈ 1.46 Hz)** at 406.25 kHz / SF8: pooled median 686 ms over 3084 inter-row deltas across both 406.25 kHz runs (static and stop-and-go), p05 686 ms / p95 691 ms, min 685 ms / max 693 ms, and a per-file median of 686 ms on every file (`tools/qc_session.py` v1.0.0; tables in `data/analysis/2026-08-22_GMATownship_day2_qc_tables.md`). The same outing independently reconfirms **655 ms at 1625 kHz** (pooled median over 2649 deltas), matching the 15 August figure exactly.
+>
+> A 4× bandwidth reduction therefore costs only ≈ 31 ms per cycle (+4.7 %), consistent with the fixed-overhead-dominates reading previously inferred from the SF6→SF8 comparison. Derived dwell arithmetic at 406.25 kHz: 100 attempts × 686 ms = 68.6 s of ranging. See `methodology.md` §4.3 for the resulting marker dwell and the open question of whether the first-5-s discard sits inside or outside it.
+
 **FR-2.2** — Each ranging cycle shall use radio address `0x12345678`.
 
 **FR-2.3** — Each ranging cycle shall produce one of three outcomes: SUCCESS (distance reading), TIMEOUT (no response), or ERROR (radio fault).
@@ -251,7 +261,7 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **FR-3.3** — On each successful response, the Responder shall log to Serial and SPIFFS: sequence number, timestamp, event tag (`RANGING_REQ`), RSSI of the incoming request packet, state, and RadioLib status code.
 
-**FR-3.4** — The Responder's LED ring shall display solid cyan at 10% brightness to indicate "Responder ready." This is a development-time visual confirmation; behaviour may be revised post-demo (see `open_decisions.md` `OD-FSD-4`).
+**FR-3.4** — The Responder's LED ring shall display solid cyan at 10% brightness to indicate "Responder ready." This is a development-time visual confirmation; behaviour may be revised post-demo (an open post-demo decision).
 
 ### 8.4 Proximity Display (Initiator)
 
@@ -349,7 +359,7 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **BR-2.2** — Brightness shall be fixed at 25% (FastLED brightness 64) to prevent eye strain at close range and to manage WS2812B current draw.
 
-**BR-2.3** — Thresholds (50 m, 200 m) are demo-tunable per `open_decisions.md` `OD-FSD-1` and are not research claims.
+**BR-2.3** — Thresholds (50 m, 200 m) are demo-tunable and are not research claims.
 
 ### 9.3 Failure Recovery
 
@@ -386,14 +396,14 @@ Battery operation is **out of scope** for Part 1 (see `NFR-10`, `OUT-2`).
 
 **IR-3.1** — Frequency: 2400.0 MHz  
 **IR-3.2** — Modulation: LoRa  
-**IR-3.3** — Bandwidth: **1625 kHz** (the SX1280 register-level value; Semtech documentation labels this setting as "1600 kHz"). The hardware value is derived from the SX1280's 52 MHz crystal: 52 / 32 = 1.625 MHz. Both labels refer to the same setting.  
-**IR-3.4** — Spreading Factor: 6  
+**IR-3.3** — Bandwidth: Part 1 characterises **two** bandwidths — **406.25 kHz** and **1625 kHz** (C2 matched comparison). 1625 kHz is the SX1280 register value Semtech labels "1600 kHz" (52 MHz / 32 = 1.625 MHz); 406.25 kHz is the valid SX1280 value closest to Müller et al. (2021)'s "400 kHz". The demo runs 1625 kHz.  
+**IR-3.4** — Spreading Factor: **8** — held constant across both bandwidths for a clean bandwidth comparison; also matches Müller et al. (2021) at 406.25 kHz.  
 **IR-3.5** — Coding Rate: 4/7 — RadioLib SX128x begin() passes cr=7 by default; setCodingRate maps this to register 0x03 (RADIOLIB_SX128X_LORA_CR_4_7). Confirmed against RadioLib 7.6.0 source.  
 **IR-3.6** — Sync Address: 0x12345678 (32-bit, must match on both pucks)  
 **IR-3.7** — Ranging Mode: SX1280 hardware ranging engine  
 **IR-3.8** — Output Power: 12 dBm (firmware configuration). The H594 variant's hardware maximum is approximately 12.5 dBm; the firmware uses 12 dBm as a slightly conservative setting compatible with RadioLib defaults.
 
-These settings replicate the Andersen et al. (2020) baseline for 0–400 m operation, enabling direct comparison of experimental results.
+At 1625 kHz these settings match the static setup of Andersen et al. (2020); at 406.25 kHz / SF8 they match the Muller et al. (2021) ranging configuration -> the same configuration regime as both lines of prior work (configuration-comparable, not a direct comparison; comparability caveats per `methodology.md` Section 3.1).
 
 ---
 
@@ -476,7 +486,7 @@ Current schema version: **1**.
 ## 12. Non-Functional Requirements (NFR)
 
 ### 12.1 Performance
-**NFR-1** — Ranging update rate: 2 Hz minimum (500 ms cycle).
+**NFR-1** — Ranging update rate: 2 Hz minimum (500 ms cycle). **AMENDED 22 August 2026:** restated to the measured rate of **≈ 1.5 Hz (≈ 655 ms cycle)** at 1625 kHz / SF8 per the FR-2.1 amendment. The 2 Hz minimum is not achievable with the blocking RadioLib ranging call and is retained here only as the original design target.
 **NFR-2** — LED response latency: ≤ 100 ms from distance result to LED update.
 **NFR-3** — Cold boot to first ranging result: ≤ 5 seconds.
 
@@ -485,14 +495,14 @@ Current schema version: **1**.
 **NFR-5** — Transient ranging failure recovery: automatic within 1 cycle (500 ms) on next SUCCESS.
 
 ### 12.3 Range
-**NFR-6** — Demo range: 0–50 m indoor, 0–400 m outdoor (line of sight), matching the Andersen et al. baseline operating envelope.
+**NFR-6** — Operating range: 0–400 m outdoor (line of sight). Part 1 characterisation is outdoor only; indoor demo operation is possible but is not characterised in Part 1.
 
 ### 12.4 Accuracy
 **NFR-7** — Distance accuracy: characterisation reported quantitatively in the Part 1 preprint per the protocol in `methodology.md`. This FSD does not specify a single accuracy figure as a system-design target; accuracy is the research output, not a system spec.
 
 ### 12.5 Environmental
 **NFR-8** — Operating temperature: 10°C to 40°C (typical Indian indoor/outdoor conditions in May–June).
-**NFR-9** — Indoor multipath tolerance: system shall produce distance readings indoors with metallic walls/furniture present; accuracy degradation in such conditions is documented in the paper, not corrected by the system.
+**NFR-9** — Indoor multipath tolerance: the system shall produce distance readings indoors with metallic walls/furniture present; the system does not correct for such degradation. Indoor characterisation is deferred to future work and is not part of the Part 1 paper.
 
 ### 12.6 Power
 **NFR-10** — All Part 1 operation (demo + paper data) uses USB-C power: laptop USB, USB-C wall adapter, or USB-C power bank. Battery operation is out of scope (see `OUT-2`).
@@ -508,11 +518,12 @@ All tunable parameters shall be defined as `#define` constants in a single confi
 #define FW_VERSION         "0.7-offload-mode"
 #define CSV_SCHEMA_V       1
 
-// === Radio Settings (Andersen et al. baseline — FSD §10.3, locked) ===
+// === Radio Settings (FSD §10.3) ===
 // Single source for radio.begin(), the boot banner, and the per-CSV header.
+// BW is set per campaign run (406.25f or 1625.0f); each CSV self-describes its BW/SF.
 #define RADIO_FREQ_MHZ     2400.0f // MHz (IR-3.2)
-#define RADIO_BW_KHZ       1625.0f // kHz — Semtech labels this "1600 kHz" (IR-3.3)
-#define RADIO_SF           6       // Spreading Factor (IR-3.4)
+#define RADIO_BW_KHZ       1625.0f // kHz — demo/1625 run; set 406.25f for the 406 kHz campaign (IR-3.3)
+#define RADIO_SF           8       // Spreading Factor — held constant across both bandwidths (IR-3.4)
 #define RADIO_CR           7       // CR 4/7; RadioLib cr=7 → register 0x03 (IR-3.5)
 #define RADIO_TX_POWER_DBM 12      // dBm; H594 hardware max ≈ 12.5 dBm (IR-3.8)
 #define RADIO_ADDRESS      0x12345678
@@ -574,7 +585,7 @@ The June 15, 2026 demo shall be considered SUCCESSFUL if and only if all of the 
 
 **AC-3** — System runs continuously for 30 minutes without hang, crash, LED freeze, or unexplained colour change. Transient timeouts are acceptable provided recovery is automatic within 2 seconds.
 
-**AC-4** — Serial *and* SPIFFS output capture ≥ 95% of ranging cycles in CSV format during the 30-minute test (≥ 3,420 lines for 30 min × 2 Hz × 95%). The two streams must agree (modulo flush timing).
+**AC-4** — Serial *and* SPIFFS output capture ≥ 95% of ranging cycles in CSV format during the 30-minute test. (Absolute line count depends on the SF8 ranging rate. **Measured 22 August 2026:** ≈ 655 ms per successful cycle at 1625 kHz / SF8, ≈ 1.53 Hz — essentially unchanged from the ~1.5 Hz measured at SF6, not below it as anticipated here. See the FR-2.1 amendment.) The two streams must agree (modulo flush timing).
 
 **AC-5** — A demo video records the full colour progression (green → amber → red → amber → green) with both pucks visible. Recorded outdoors where space permits.
 
@@ -588,14 +599,15 @@ The June 15, 2026 demo shall be considered SUCCESSFUL if and only if all of the 
 
 Documented to preserve project direction. **Not implemented for June 15 or for the Part 1 paper.**
 
-- **Crash detection** (Contribution 2): IMU-based three-phase signature (freefall → impact → static). Specified in a separate FSD when scheduled.
+- **Crash detection** (Part 2): IMU-based three-phase signature (freefall → impact → static). Deferred; specified in a separate FSD when scheduled.
 - **Haptic feedback**: ERM motor pulses on PEER_LOST or major state change.
 - **Battery operation**: Requires BMS-protected battery and validated charge/discharge circuit. Pro-Range ICR cells (without integrated BMS) cannot be directly connected to the T3-S3. Part 2 / engineering future-work item.
 - **Mesh expansion**: Support for 3+ pucks via time-multiplexed ranging.
-- **Adaptive thresholds** (Contribution 3): Distance thresholds adapt to estimated group velocity.
+- **Adaptive thresholds** (future work): Distance thresholds adapt to estimated group velocity.
 - **OLED debug display**: Already implemented as a data-collection tool, gated by `#define ENABLE_DISPLAY`. Not part of demo scope.
 - **Power management**: Sleep modes between ranging cycles for battery life.
 - **Bike-mounted GPS-vs-Puck comparison**: Out of scope for Part 1 (`OUT-11`); candidate Part 2 experiment.
+- **Deferred characterisation studies**: both-endpoints-mobile ("Tier 3"); indoor multipath; formal proximity-classifier evaluation (potential Part 1.5).
 
 ---
 
@@ -619,7 +631,7 @@ Documented to prevent scope creep and to make the Part 1 boundary unambiguous.
 
 **OUT-8** — Cellular, WiFi, or Bluetooth connectivity. ESP32-S3's WiFi/BT are explicitly disabled at boot (FR-1.6).
 
-**OUT-9** — Crash detection (deferred to Contribution 2 / Part 2 paper).
+**OUT-9** — Crash detection (deferred to Part 2).
 
 **OUT-10** — Production-grade enclosure or mechanical design. 3D-printed cases for demo and data collection.
 
@@ -629,29 +641,31 @@ Documented to prevent scope creep and to make the Part 1 boundary unambiguous.
 
 ## 18. Open Decisions
 
-Open decisions are tracked centrally in `open_decisions.md`. Currently open items affecting this FSD: `OD-FSD-1` (50 m / 200 m thresholds), `OD-FSD-3` (500 ms ranging interval), `OD-FSD-4` (Responder LED behaviour). See `open_decisions.md` for current state and triggers.
+Open decisions affecting this FSD are tracked in the project's internal decision log. Currently open: the 50 m / 200 m LED thresholds, the 500 ms ranging interval (superseded operationally by the measured cadence — see the FR-2.1 amendment), and the Responder LED behaviour. All three are demo-tuning decisions, not research claims.
 
 ---
 
 ## 19. References
 
 ### 19.1 Project Documents
-- `methodology.md` — Experimental protocol for Part 1 data collection
-- `open_decisions.md` — Central tracker of unresolved decisions
-- `research_strategy.md` — Publication plan, contribution scope, novelty positioning (internal)
-- `guardrails.md` — Project-internal rules on claims and rigour (internal)
-- `FIRMWARE_PLAN.md` — Step-by-step firmware bring-up plan
-- `State.md` — Current project status snapshot
+- `methodology.md` — Experimental protocol for Part 1 data collection. Published with the Part 1 preprint; available on request before then (see `data/README.md`).
 
-Internal-only files (`research_strategy.md`, `guardrails.md`, `open_decisions.md`, `State.md`, `FIRMWARE_PLAN.md`) will be referenced only in the internal version of this FSD; the public Part 1 release strips internal cross-references.
+Per the release policy stated in earlier revisions of this section, cross-references to project-internal working documents are stripped from the public release of this FSD. Where such a reference stood, the substance it carried is stated inline instead.
 
 ### 19.2 External References
+
 - LILYGO T3-S3 hardware documentation: <https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series>
 - Semtech SX1280 datasheet (Rev 3.2, July 2020)
 - RadioLib documentation: <https://github.com/jgromes/RadioLib>
-- Andersen et al. (2020), "Ranging Capabilities of LoRa 2.4 GHz" (DTU / IEEE) — baseline
-- arXiv 2509.08488 — SX1280 IoT localisation (related work, contrast)
-- arXiv 2509.23125 — Environmental factors in SX1280 ToF ranging (related work)
+- Wolf et al. (2019), "Benchmarking of Narrowband LPWA Physical Layer Ranging Technologies," WPNC (IEEE); HAL hal-02350545 — closest empirical prior work (static 406.25-vs-1625 kHz comparison; unreleased dev-kit rig)
+- Müller et al. (2021), "Outdoor Ranging and Positioning based on LoRa Modulation," ICL-GNSS (IEEE) — closest semi-mobile precedent (one fixed + one walking node, 406 kHz)
+- Andersen et al. (2020), "Ranging Capabilities of LoRa 2.4 GHz" (DTU / IEEE) — static baseline
+- Gottschalk, Ayub, Petersen (2026), "Low-power distance ranging for 2D-positioning using LoRa 2.4 GHz," Internet of Things 37:101945 — anchor-based positioning (contrast)
+- Albinsaid, Mukhopadhyay, Alouini (2025), "Design and Development of a Scalable and Energy-Efficient Localization Framework…," arXiv 2509.08488 — custom-hardware energy/localisation framework (contrast)
+- Salimzhanova et al. (2024), "A LoRa 2.4 GHz Testbed for Experiment Repeatability" — open SX1280 communication testbed (open-platform precedent)
+- Janssen et al. (2020), "LoRa 2.4 GHz Communication Link and Range," Sensors 20(16):4366 — communication link-budget/range modelling (not ToF ranging)
+- Zhou et al. (2025), "Impact of Environmental Factors on LoRa 2.4 GHz Time of Flight Ranging Outdoors," arXiv 2509.23125 — environmental factors (complementary)
+- Semtech application note AN1200.29 — SX1280 ranging (reference)
 
 ### 19.3 Standards
 - IEEE 802.15.4 — referenced for general 2.4 GHz coexistence considerations only; not implemented.
@@ -663,8 +677,11 @@ Internal-only files (`research_strategy.md`, `guardrails.md`, `open_decisions.md
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 13 May 2026 | Initial FSD for June 15 demo. |
-| 1.1 | 15 May 2026 | Cleanup pass against project guardrails and methodology. **§2** Removed the technically-incorrect Faraday-cage claim. **§2, §3.2** Reframed primary use case around outdoor group coordination (hiking/trekking/convoy); motorcyclists noted as forward-looking application only. **§3.3** Softened novelty claim per project novelty discipline; removed unhedged "no prior work" framing; added explicit definition of "infrastructure-free"; explicit statement that the system produces categorical proximity feedback, not localisation. **§5** Added glossary entries for SPIFFS, eFuse MAC, Infrastructure-free. **§6.2** Added `logger.cpp` module reflecting SPIFFS logging. **§6.1** Architectural diagram updated to show SPIFFS storage. **§8.1** Added **FR-1.6** promoting WiFi/BT-off-at-boot from prior OD-2 to a Functional Requirement, with boot-banner self-verification. Updated FR-1.5 to include board ID (from eFuse MAC) and CSV schema version. **§8.5** Expanded with FR-5.4, FR-5.5, FR-5.6 covering SPIFFS on-device CSV logging with flush cadence and download command. **§8.4** Added FR-4.5 making explicit that negative-distance clamping applies only to LED colour mapping. **§9.1, §9.3** Updated BR-1.5 (FAULT state) to include WiFi/BT API failure as a trigger; clarified BOOT-to-RANGING transition includes the WiFi/BT-off check. **§9.2** BR-2.3 reframed: thresholds are demo-tunable, not research claims (cross-references `OD-FSD-1`). **§10.2** Added IR-2.3 covering SPIFFS interface. **§10.3** Corrected IR-3.3 bandwidth: 1625 kHz (Semtech labels this setting as "1600 kHz"); both refer to the same hardware setting. **§11** Major revision: DR-1 updated to expanded Initiator schema (`seq, timestamp_ms, status, raw_distance_m, rssi_dbm, state, consecutive_failures, radio_status_code`) with `raw_distance_m` semantics; DR-2 added for Responder CSV; DR-3 added for schema versioning; DR-4 added pointing to `methodology.md` for full data-capture procedure. **§13** RADIO_BANDWIDTH corrected to 1625.0 kHz; added CSV_SCHEMA_V, BOARD identifiers, SPIFFS_FLUSH_EVERY_CYCLES. **§14** Battery row updated; SPIFFS-full row added; WiFi/BT API failure row added. **§15** AC-4 extended to require Serial and SPIFFS streams to agree; AC-5 motorcycle reference removed; AC-7 cross-referenced to `methodology.md` for full paper-grade campaign. **§16** Battery clarified as Part 2 work; Pro-Range cells noted; bike-mounted GPS comparison added. **§17** OUT-2 (battery) clarified; OUT-8 (cellular/WiFi/BT) updated to reference FR-1.6; OUT-11 added (motorcycle field testing). **§18** Reduced to a pointer; OD-1..OD-4 renamed `OD-FSD-1..OD-FSD-4` in `open_decisions.md`. **§19** Added project document references; noted public-release cross-reference handling. **Top of document:** Added metadata block (Status, Authoritative for, Audience, Version, Last Revised, Owner) following project file convention. **§1.5** Added Versioning subsection. |
+| 1.1 | 15 May 2026 | Cleanup pass against project guardrails and methodology. **§2** Removed the technically-incorrect Faraday-cage claim. **§2, §3.2** Reframed primary use case around outdoor group coordination (hiking/trekking/convoy); motorcyclists noted as forward-looking application only. **§3.3** Softened novelty claim per project novelty discipline; removed unhedged "no prior work" framing; added explicit definition of "infrastructure-free"; explicit statement that the system produces categorical proximity feedback, not localisation. **§5** Added glossary entries for SPIFFS, eFuse MAC, Infrastructure-free. **§6.2** Added `logger.cpp` module reflecting SPIFFS logging. **§6.1** Architectural diagram updated to show SPIFFS storage. **§8.1** Added **FR-1.6** promoting WiFi/BT-off-at-boot from prior OD-2 to a Functional Requirement, with boot-banner self-verification. Updated FR-1.5 to include board ID (from eFuse MAC) and CSV schema version. **§8.5** Expanded with FR-5.4, FR-5.5, FR-5.6 covering SPIFFS on-device CSV logging with flush cadence and download command. **§8.4** Added FR-4.5 making explicit that negative-distance clamping applies only to LED colour mapping. **§9.1, §9.3** Updated BR-1.5 (FAULT state) to include WiFi/BT API failure as a trigger; clarified BOOT-to-RANGING transition includes the WiFi/BT-off check. **§9.2** BR-2.3 reframed: thresholds are demo-tunable, not research claims (cross-references `OD-FSD-1`). **§10.2** Added IR-2.3 covering SPIFFS interface. **§10.3** Corrected IR-3.3 bandwidth: 1625 kHz (Semtech labels this setting as "1600 kHz"); both refer to the same hardware setting. **§11** Major revision: DR-1 updated to expanded Initiator schema (`seq, timestamp_ms, status, raw_distance_m, rssi_dbm, state, consecutive_failures, radio_status_code`) with `raw_distance_m` semantics; DR-2 added for Responder CSV; DR-3 added for schema versioning; DR-4 added pointing to `methodology.md` for full data-capture procedure. **§13** RADIO_BANDWIDTH corrected to 1625.0 kHz; added CSV_SCHEMA_V, BOARD identifiers, SPIFFS_FLUSH_EVERY_CYCLES. **§14** Battery row updated; SPIFFS-full row added; WiFi/BT API failure row added. **§15** AC-4 extended to require Serial and SPIFFS streams to agree; AC-5 motorcycle reference removed; AC-7 cross-referenced to `methodology.md` for full paper-grade campaign. **§16** Battery clarified as Part 2 work; Pro-Range cells noted; bike-mounted GPS comparison added. **§17** OUT-2 (battery) clarified; OUT-8 (cellular/WiFi/BT) updated to reference FR-1.6; OUT-11 added (motorcycle field testing). **§18** Reduced to a pointer; OD-1..OD-4 renamed `OD-FSD-1..OD-FSD-4` in the internal decision log. **§19** Added project document references; noted public-release cross-reference handling. **Top of document:** Added metadata block (Status, Authoritative for, Audience, Version, Last Revised, Owner) following project file convention. **§1.5** Added Versioning subsection. |
 | 1.2 | 15 May 2026 | Targeted clarifications. **§2** "one or more peer pucks" → "paired peer" — scopes the system description to the pair-only Part 1 deployment (OUT-3). **§3.2** Corrected LED display description: only the Initiator displays proximity colours; Responder is passive with cyan ready state (FR-3.4). Symmetric display noted as post-demo polish (`OD-FSD-4`). **DR-1** `raw_distance_m` clarified: RadioLib raw value on SUCCESS (negatives preserved); `NaN` on TIMEOUT/ERROR. **DR-2** `rssi_dbm` clarified: `0` for BOOT/READY/ERROR events when no incoming packet is associated. **DR-1.1** Operator metadata line schema updated: `RUN_DISTANCE_M` renamed to `TRUE_DISTANCE_M` for clarity (the field holds ground truth, not the firmware's measurement); `RUN_ID` added so each CSV is self-identifying without depending on the filename. Mobile-tier values are `NA`. **FR-5.5** SPIFFS filename pattern standardised to `pucklog_<board_id_short>_<boot_seq>.csv` (matching `methodology.md` on `<boot_seq>`). **IR-3.8 + §13** RADIO_POWER clarified: firmware configures 12 dBm; H594 hardware maximum is approximately 12.5 dBm; the 12 dBm setting is slightly conservative.<br><br>**Cross-file note:** This version creates two minor divergences with `methodology.md` (§4.1 operator metadata schema; §4.4 filename pattern using `<board_id>` instead of `<board_id_short>`). Methodology to be aligned in its next pass; FSD is the upstream specification for both fields. |
 | 1.3 | 21 May 2026 | Firmware-alignment correction following the `v0.6-radio-config` tag on `main`. **§10.3 IR-3.5** Coding rate corrected from "4/5 (RadioLib default)" to **4/7** — RadioLib SX128x `begin()` passes `cr=7` by default; `setCodingRate(7)` maps to register `0x03` (`RADIOLIB_SX128X_LORA_CR_4_7`). Confirmed against RadioLib 7.6.0 source. The prior "4/5 default" assumption was incorrect for the SX128x driver (it is correct for SX127x). **§13 Configuration Parameters** `RADIO_CR` example updated from `5 // Coding Rate 4/5` to `7 // Coding Rate 4/7 (RadioLib SX128x default; see IR-3.5)` to match. No other normative requirements changed; this revision aligns the spec with what the firmware has always set on the wire. |
 | 1.4 | 22 May 2026 | v0.7-offload-mode firmware alignment. **§8.1 FR-1.5** Boot banner now includes `MODE_SELECT_WINDOW_MS` and resolved `MODE:` line. **§8.5** `FR-5.6` rewritten: LIST output is now framed (`---BEGIN LIST---` / `---END LIST---`, one `<filename> <size_bytes>` per line) for machine consumption by `tools/offload/offload.py`; DUMP framing unchanged. **FR-5.7** added: OFFLOAD boot mode — 3 s mode-select window at boot; exact-match `OFFLOAD\n` triggers OFFLOAD mode (no log file opened, no ranging, Serial commands only); otherwise NORMAL mode. WiFi/BT fault check precedes the window. **§11.1 DR-1.1** and **§11.2 DR-2.1** firmware-written header line updated to include radio config fields (`FREQ`, `BW`, `SF`, `CR`, `TXPOWER`) — each CSV is now self-describing across firmware versions. **§13** `FW_VERSION` updated to `0.7-offload-mode`; radio `#define` names aligned to actual firmware constants (`RADIO_FREQ_MHZ`, `RADIO_BW_KHZ`, `RADIO_TX_POWER_DBM`); `MODE_SELECT_WINDOW_MS` added; stale `RANGING_TIMEOUT_MS` / `MAX_INIT_RETRIES` / `SPIFFS_FLUSH_EVERY_CYCLES` removed. |
 | 1.5 | 23 May 2026 | No normative requirements changed; this revision documents post-tag refinements to `tools/offload/offload.py` that re-anchor the `v0.7-offload-mode` tag. **§11.1** Operator-metadata line 2 is now inserted at offload by the script, which prompts for SITE / TIER / DATE / S<n> once per session and for `distance_or_run`, `TRUE_DISTANCE_M`, `BOOT_UTC_IST` per file. IST timestamps are converted to UTC before being written to the CSV. SESSION_ID and RUN_ID are auto-derived. Operational details live in `methodology.md` §4.1 / §4.4. |
+| 1.6 | 1 June 2026 | Systems reframe (OD-RS-7) and prior-art-driven C1/C2 lock, following full-text reads of Müller et al. (2021), Wolf et al. (2019), Albinsaid et al. (2025), and Janssen et al. (2020). **§3.3** Reframed as a systems + measurement + reproducibility paper; contributions stated as C1–C4. Prior-art/gap paragraph rewritten: Wolf (2019) compared 406.25 vs 1625 kHz *statically* on an unreleased SX1280 dev-kit rig, so the static bandwidth comparison is framed as replication and C2's contribution narrows to the matched comparison at *walking speed* (the gap between Wolf's static comparison and Müller's single-bandwidth walking); C1 reframed as an open **commodity-hardware** (ESP32-S3 + SX1280) platform distinct from Wolf's unreleased rig, Albinsaid's custom-hardware framework, and Salimzhanova's communication testbed; both-endpoints-mobile and indoor characterisation reaffirmed as future work. **§10.3 IR-3.3 / IR-3.4** Part 1 characterises two bandwidths (406.25 + 1625 kHz) at SF8 held constant (C2 matched comparison); demo runs 1625 kHz. **§12 NFR-6** Operating range scoped to outdoor characterisation; **NFR-9** indoor multipath deferred to future work. **§13** `RADIO_SF` 6 → 8; `RADIO_BW_KHZ` set per campaign run (406.25f / 1625.0f), each CSV self-describing its BW/SF. **§15 AC-4** de-hardcoded from a single bandwidth. **§16** Crash detection → Part 2; velocity-adaptive thresholds → future work; deferred-characterisation-studies bullet added. **§17 OUT-9** Crash detection reassigned to Part 2. **§19.2** External references expanded to full citations: added Wolf (2019), Müller (2021), Gottschalk (2026), Albinsaid (2025; = arXiv 2509.08488), Salimzhanova (2024), and Janssen (2020), resolving the former bare arXiv IDs. Configuration generalisation (SF/BW) is the only normative change. |
+| 1.7 | 2 July 2026 | Section 10.3 closing sentence reworded: configuration-regime alignment with Andersen (2020) and Muller (2021) replaces "enabling direct comparison"; comparability caveats per `methodology.md` Section 3.1 (single-direction RTToF vs role-swap-and-average). No normative parameter changes. |
+| 1.8 | 22 August 2026 | Post-first-field-campaign amendment pass (doc pass of 22 Aug 2026). **§8.2 FR-2.1** Amended with a dated note: the firmware applies no software pacing, so the blocking RadioLib `range()` call sets the cycle time; measured ≈ 655 ms (≈ 1.53 Hz) per successful exchange at 1625 kHz / SF8 across the 15 Aug 2026 GMA township outing. The 500 ms ± 50 ms target is retained as the original specification but is superseded operationally; derived figures (FR-5.4 flush window, BR-3.2 peer-loss window, NFR-5 recovery) restated in the amendment; no-response cycles (≈ 10.6 s RadioLib guard) and the 406.25 kHz TODO-VERIFY flagged. **§12.1 NFR-1** Restated to ≈ 1.5 Hz with the same dated note. **§15 AC-4** Parenthetical corrected: the SF8 rate is essentially unchanged from SF6, not below it. **§3.3** C2 condition relabelled from "walking-speed semi-mobile" to "semi-mobile stop-and-go" — label only; the contribution and its hedge are unchanged. No pin, radio-parameter, or schema change.

@@ -1,0 +1,58 @@
+timestamp_utc: 2026-07-12T23:54:33.335566+00:00
+port: COM8
+baud: 115200
+
+[BANNER]
+FW_VERSION: 0.9-field-hardening
+BOARD_ID: 0x541BBDD4DB1C
+ROLE: INITIATOR
+CSV_SCHEMA_V: 1
+WIFI_OFF: 1
+BT_OFF: 1
+RADIO: 2400.0 MHz, BW 1625.00 kHz, SF 8, CR 4/7, 12 dBm
+MODE_SELECT_WINDOW_MS: 3000
+SPIFFS_FILE: <none>
+MODE: OFFLOAD
+
+[SESSION_METADATA]
+SITE: ParadeGTest
+TIER: T1
+DATE: 2026-07-13
+S_NUM: S1
+SESSION_ID: 2026-07-13_ParadeGTest_S1
+
+[FILES]
+/pucklog_D4DB1C_1.csv  expected=627  actual=627  status=OK  renamed_to=2026-07-13_ParadeGTest_T1_distance-50m_Initiator_S1_b1.csv
+    BOOT_UTC: NA
+    RUN_ID: T1_distance_S1
+    TRUE_DISTANCE_M: 50m
+    DISTANCE_OR_RUN: distance
+/pucklog_D4DB1C_2.csv  expected=1809  actual=1809  status=OK  renamed_to=2026-07-13_ParadeGTest_T1_distance-51m_Initiator_S1_b2.csv
+    BOOT_UTC: NA
+    RUN_ID: T1_distance_S1
+    TRUE_DISTANCE_M: 51m
+    DISTANCE_OR_RUN: distance
+/pucklog_D4DB1C_3.csv  expected=13459  actual=13459  status=OK  renamed_to=2026-07-13_ParadeGTest_T1_distance-52m_Initiator_S1_b3.csv
+    BOOT_UTC: NA
+    RUN_ID: T1_distance_S1
+    TRUE_DISTANCE_M: 52m
+    DISTANCE_OR_RUN: distance
+/pucklog_D4DB1C_4.csv  expected=233  actual=233  status=OK  renamed_to=2026-07-13_ParadeGTest_T1_distance-62m_Initiator_S1_b4.csv
+    BOOT_UTC: NA
+    RUN_ID: T1_distance_S1
+    TRUE_DISTANCE_M: 62m
+    DISTANCE_OR_RUN: distance
+/pucklog_D4DB1C_5.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_6.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_7.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_8.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_9.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_10.csv  expected=631  actual=631  status=OK
+/pucklog_D4DB1C_11.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_12.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_13.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_14.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_15.csv  expected=233  actual=233  status=OK
+/pucklog_D4DB1C_16.csv  expected=237  actual=237  status=OK
+/pucklog_D4DB1C_17.csv  expected=2741  actual=2741  status=OK
+/pucklog_D4DB1C_18.csv  expected=237  actual=237  status=OK

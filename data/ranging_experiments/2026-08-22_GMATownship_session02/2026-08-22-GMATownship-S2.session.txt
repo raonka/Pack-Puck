@@ -1,0 +1,582 @@
+SESSION_ID:            2026-08-22-GMATownship-S2
+START_UTC:             not recorded                           # not recorded in the field
+START_LOCAL:           not recorded                           # not recorded in the field
+END_UTC:               not recorded                           # final offload ran 2026-08-22T12:14:39Z
+SITE:                  GMA township, Kota, Rajasthan
+SITE_COORDINATES:      25.224074958816207, 75.8140609418462   (operator-supplied)
+SITE_NOTES:            Partially built township. Straight LOS stretch carrying the
+                       30-300 m marker line. Known structure near the 240 m cone.
+                       Field notes additionally record shrub and house near the 300 m
+                       cone ("300m - Shrub and House Rerun").
+INDOOR_OUTDOOR:        outdoor
+TEMP_C:                34                                     # phone weather, 15:07 IST
+HUMIDITY_PCT:          56                                     # dew point 24 C
+WEATHER:               Partly cloudy; feels like 40 C; high 34 / low 26
+WIND:                  11 kph from W
+RF_ENV_NOTES:          not recorded. Pressure 1002 hPa, visibility 16 km, UV 2,
+                       AQI 82 (satisfactory), rain for the day <1.3 mm.
+ENV_SOURCE:            environment/Screenshot_20260822-150738.png and -150742.png
+                       (15:07 IST, BEFORE the first offload at 16:24 IST).
+                       ONE READING ONLY for this outing. The second capture pair
+                       (-164308 / -164313, 16:43 IST) is NOT a second reading: both
+                       frames read "Updated at 3:07 pm" and the phone was in airplane
+                       mode, so they re-display the same 15:07 data. No mid-session or
+                       end-of-session conditions were captured.
+
+TIER:                  1 (static) + 2 (semi-mobile stop-and-go), BOTH bandwidths
+SWEEP_ORDER:           406.25 then 1625                       # leads with the bandwidth
+                       not run on 15 Aug, per methodology 8 alternation rule
+BW_SWEEP_1:            406.25 kHz                             (banner + CSV header line 1)
+BW_SWEEP_2:            1625 kHz                               (banner + CSV header line 1)
+MARKER_SET:            10 cones, 30-300 m at 30 m spacing (methodology 5.1)
+DISTANCES_TESTED:      30,60,90,120,150,180,210,240,270,300
+SWEEP_DIRECTION:       static ascending 30->300; stop-and-go descending 300->30
+                       (both bandwidths; verified from the data, see VERIFICATION)
+
+RUNS:                  4
+  RUN 406.25 static      -> boots b1..b14, one file per marker (per-marker boot,
+                            methodology 4.6); 10 markers + 4 retakes
+  RUN 406.25 stop-and-go -> boots b15 (rejected) and b18 (kept), single boot each
+                            (b16, b17 are empty boot stubs)
+  RUN 1625 static        -> boots b1..b10, one file per marker, no retakes
+  RUN 1625 stop-and-go   -> boot b11, single file for the whole marker sequence
+
+QC:                    tools/qc_session.py v1.0.0, run 2026-08-22T13:04Z
+  RUN 406.25 static      -> HOLD   (see D5)
+  RUN 406.25 stop-and-go -> PASS
+  RUN 1625 static        -> PASS
+  RUN 1625 stop-and-go   -> PASS
+  RUN unassigned (b16,b17 stubs) -> PASS (no marker-attributable data)
+  Reports: data/analysis/2026-08-22_GMATownship_162424_qc/   (406.25)
+           data/analysis/2026-08-22_GMATownship_174415_qc/   (1625)
+  Tables:  data/analysis/2026-08-22_GMATownship_day2_qc_tables.md
+
+MOUNT_SETUP_USED:      TODO                                   # not recorded
+MOUNT_HEIGHT_CM:       TODO                                   # not recorded
+MOUNT_TYPE_A / _B:     TODO                                   # not recorded
+ANTENNA_ORIENTATION_A / _B: TODO                              # not recorded
+CARRY_METHOD (Tier 2): TODO                                   # not recorded; methodology 8.2
+                       specifies short pole at matched 1.5 m, antenna vertical, held
+                       at arm reach -- confirm this is what was used
+
+GROUND_TRUTH_METHOD:   taut fibreglass tape, two-person leapfrog, read from the 0
+                       graduation; pre-written cumulative tally sheet; each cone
+                       numbered with its distance at placement; full recount after
+                       layout (methodology 5.2)
+GROUND_TRUTH_TOLERANCE: OPEN -- instrument class recorded, total bound not yet set.
+                       TAPE ACCURACY CLASS: III  (recorded 2026-09-11)
+                       Class III maximum permissible error is +/-(0.6 + 0.4 L) mm, L
+                       rounded up to whole metres:
+                            30 m  ->  +/-12.6 mm  (+/-1.3 cm)
+                           300 m  -> +/-120.6 mm  (+/-12.1 cm)
+                       THAT IS THE INSTRUMENT FLOOR ONLY. The total ground-truth budget
+                       must also carry tape sag, tension variation, leapfrog accumulation
+                       across 10 segments and cone-placement precision -- none of which
+                       were recorded. Until that procedural component is estimated, NO
+                       TOTAL BOUND IS STATED and every signed-error figure in this
+                       session still carries the open item. The previous pre-set
+                       +/-50 cm bound is NOT assumed to carry over.
+CONE_PLACEMENT_FILE:   TODO                                   # cone_placement.csv not written
+SITE_PHOTOS:           TODO                                   # methodology 5.2 step 7
+
+INITIATOR_BOARD_ID:    0x541BBDD4DB1C
+RESPONDER_BOARD_ID:    0x5CD85EDB5110                         (from 406.25 offload banner)
+INITIATOR_USB_POWER_SOURCE / RESPONDER_...: TODO
+FW_VERSION:            0.9-field-hardening                    (both boards, from banners)
+CSV_SCHEMA_VERSION:    1                                      (both boards, from banners)
+RADIO (banner, sweep 1): 2400.0 MHz, BW 406.25 kHz, SF 8, CR 4/7, 12 dBm
+RADIO (banner, sweep 2): 2400.0 MHz, BW 1625.00 kHz, SF 8, CR 4/7, 12 dBm
+WIFI_OFF / BT_OFF:     1 / 1 on both boards, both sweeps      (banner self-report, FR-1.6)
+FILTER_IN_FIRMWARE:    none
+RAW_LOGGING:           true
+DISTANCE_CLAMPING_IN_LOG: false
+PUCK_BOOT_UTC:         TODO per file                          # CSV line-2 operator metadata
+                       not written (see D3)
+BOOT_MODE:             per-marker (Tier 1 static) | single-boot (Tier 2 stop-and-go)
+STOPWATCH_START_UTC:   TODO -- not recorded to the second (methodology 7.3 step 1).
+                       Recovered from the data instead: the lap sheets span 1032.5 s
+                       (406.25) and 1027.2 s (1625) against CSV spans of 1027.7 s and
+                       1028.5 s, so the stopwatch was started at puck boot. A
+                       least-spread offset scan over +/-30 s in 0.1 s steps returns
+                       +1.1 s (406.25) and +0.2 s (1625) -- both inside the +/-1 s
+                       that methodology 7.3 calls adequate. Offset 0 s is used.
+MARKER_ARRIVAL_LOG:    stopwatch_laps_data_406.csv  (this directory; 20 laps)
+                       stopwatch_laps_data_1625.csv (this directory; 21 laps)
+                       Originals in tools/offload/offload/ (gitignored); copies filed
+                       here. Lap convention: one press at the END of each dwell and
+                       at the END of each walk transit, so laps alternate long
+                       (dwell, ~70.5 s) and short (transit, ~27-44 s). Odd laps are
+                       dwells, even laps transits.
+                       406.25: 20 laps = 10 dwells + 10 transits, no spurious presses.
+                       1625:   21 laps = 10 dwells + 10 transits + one spurious
+                               0.13 s double-press (lap 4), dropped.
+                       Both runs: single monotonic 300->30 descent, all ten markers.
+
+                       DWELL WINDOWS, seconds since boot (offset 0):
+                         cone   406.25 kHz        1625 kHz
+                         300    0.0-70.8          0.0-70.8
+                         270    105.6-176.2       99.8-170.3
+                         240    219.8-290.4       201.3-272.4
+                         210    325.2-396.2       302.6-374.2
+                         180    423.4-493.8       407.6-479.0
+                         150    523.6-594.2       518.6-589.3
+                         120    622.8-693.2       618.2-688.9
+                          90    723.3-793.8       720.8-791.3
+                          60    822.7-897.4       819.8-891.5
+                          30    926.5-997.2       923.4-995.0
+
+                       PER-CONE BOUNDARY AGREEMENT vs the qc_session.py heuristic:
+                         ORDER and COUNT agree exactly in both runs (10 dwells,
+                         300->30). The heuristic starts each dwell EARLY -- mean
+                         -7.0 s (406.25, range -14.4..0.0) and -11.7 s (1625, range
+                         -22.6..0.0) -- because the plateau detector catches the tail
+                         of the approach; and ends slightly early, mean -5.3 s and
+                         -3.7 s. Worst single boundary: -22.2 s (406.25, 210 m end)
+                         and -22.6 s (1625, 150 m start). Effect on the statistics is
+                         negligible: no median moves more than 0.6 m (406.25) or
+                         0.3 m (1625). See D7 for the two markers the heuristic
+                         mis-labelled at 406.25.
+DWELL_USED:            stop-and-go: ~70.5 s per marker at BOTH bandwidths (measured
+                       from the lap logs: 70.4-74.8 s at 406.25, 70.6-71.7 s at 1625)
+                       -> 95-109 attempts at 406.25, 99-110 at 1625.
+                       static: ~61 s at 406.25 (N=90 on six of ten markers, see D1);
+                       ~70 s at 1625 (N>=100 throughout).
+MEASURED_CADENCE:      406.25 kHz -> 686 ms/cycle (~1.46 Hz), pooled median over 3084
+                       inter-row deltas across both 406.25 runs
+                       1625 kHz   -> 655 ms/cycle (~1.53 Hz), pooled median over 2649
+                       deltas; independently reconfirms the 15 Aug figure
+                       Closes the measurement half of OD-METH-4.
+OFFLOAD_SESSIONS:      20260822_162424-Initiator (406.25 sweep, 2026-08-22T10:54:45Z,
+                                                  files 1-18)
+                       20260822_163115-Responder (406.25 sweep, 2026-08-22T11:01:29Z,
+                                                  file 1, single boot for the whole sweep)
+                       20260822_174415-Initiator (1625 sweep,   2026-08-22T12:14:39Z,
+                                                  files 1-11)
+                       NOTE: no Responder offload exists for the 1625 sweep (see D8).
+
+---------------------------------------------------------------------------
+VERIFICATION AGAINST THE DAY-2 SPEC
+---------------------------------------------------------------------------
+
+Spec: four runs -- 406.25 static (0-300), 406.25 stop-and-go (300-0),
+1625 static (0-300), 1625 stop-and-go (300-0).
+
+BANDWIDTH   All 18 files of the first offload set carry BW=406.25 in firmware
+            header line 1, matching the offload banner. All 11 files of the second
+            set carry BW=1625.00, matching its banner. No file carries a bandwidth
+            other than the one its offload set advertises. MATCHES SPEC.
+
+ORDER       406.25 offloaded 10:54:45Z, 1625 offloaded 12:14:39Z -- the 406.25
+            sweep preceded the 1625 sweep. Within each set, boot index order puts
+            the static files before the stop-and-go file(s). MATCHES SPEC.
+            Consistent with methodology 8 (15 Aug ran 1625 only, so 22 Aug leads
+            with 406.25).
+
+DIRECTION   406.25 static: median reading rises monotonically across boots b1..b14
+            (38.9 -> 304.6 m). ASCENDING, matches 0-300.
+            406.25 stop-and-go (b18): first reading 312.9 m, last 8.4 m; ten
+            descending dwells. DESCENDING, matches 300-0.
+            1625 static: b1..b10 medians 29.8 -> 299.3 m. ASCENDING, matches 0-300.
+            1625 stop-and-go (b11): first reading 297.9 m, last -4.8 m; ten
+            descending dwells. DESCENDING, matches 300-0.
+            ALL FOUR MATCH SPEC.
+
+MISMATCHES  None on bandwidth, order or direction.
+            Deviations against the *protocol* (not the day-2 spec) are D1-D9 below.
+
+---------------------------------------------------------------------------
+DEVIATIONS FROM PROTOCOL
+---------------------------------------------------------------------------
+
+D1  ATTEMPTS BELOW SPEC, 406.25 STATIC. N=100 per marker is the methodology 11
+    requirement. Achieved on the kept 406.25 static files: 100, 90, 90, 90, 110,
+    100, 100, 90, 90, 90 at 30..300 m -- six of ten markers at N=90 (shortfall 10).
+    Recorded as a DEVIATION against the sessions-per-tier requirement, not as a discard, per the
+    day-2 QC instruction. The 1625 static run met or exceeded N=100 at every
+    marker (100,100,110,110,110,110,110,110,110,130). Root cause is the dwell
+    clock: 90 attempts x 686 ms = 61.7 s, i.e. a ~60 s dwell was run where 68.6 s
+    is needed for 100 attempts at the newly measured 406.25 kHz cadence. This is
+    the deviation the day-3 dwell change is meant to remove.
+
+D2  ARRIVAL LOG PRESENT BUT NOT FILED WITH THE SESSION. The methodology 7.3 operator
+    arrival log EXISTS for both stop-and-go runs -- phone-stopwatch lap sheets, kept
+    as stopwatch_laps_data_406.csv and stopwatch_laps_data_1625.csv. This is the
+    first outing to satisfy 7.3, and dwell-to-marker attribution for both stop-and-go
+    runs is OPERATOR-CONFIRMED, not heuristic.
+
+    The deviation is procedural, not evidentiary:
+      (a) The lap files were left in tools/offload/offload/, which is GITIGNORED, and
+          were not filed with the session or transcribed into MARKER_ARRIVAL_LOG as
+          methodology 7.4 requires. Copies are now filed alongside this log.
+      (b) STOPWATCH_START_UTC was not recorded to the second (methodology 7.3 step 1).
+          Alignment had to be recovered from the data instead of read from the log --
+          see MARKER_ARRIVAL_LOG below. It recovered cleanly, but that is luck, not
+          procedure: the conversion in methodology 7.3 needs STOPWATCH_START_UTC and
+          BOOT_UTC, and neither was written down.
+      (c) The lap convention used (press at the END of each dwell and each transit)
+          is not the one methodology 7.3 step 2 specifies (one press ON ARRIVAL at
+          each cone). Both are recoverable, but the protocol should state which.
+
+    Nothing about the numbers is in doubt; the filing and the two missing fields are.
+
+D3  NO CSV LINE-2 OPERATOR METADATA on any file of either sweep (methodology 7.4
+    step incomplete). SITE / SESSION_ID / RUN_ID / BOOT_UTC / TRUE_DISTANCE_M are
+    absent from all 29 files. Ground truth lives in the operator-supplied session
+    plans at data/analysis/2026-08-22_GMATownship_162424_qc/session_plan.json and
+    data/analysis/2026-08-22_GMATownship_174415_qc/session_plan.json instead. Raw CSVs
+    deliberately left unedited. Second consecutive outing (15 Aug D3).
+
+D4  ENVIRONMENTAL LOGGING NOT DONE. No weather screenshot, no temperature/humidity,
+    no wind or RF-environment notes, no start/end times (environmental-logging requirement /
+    methodology 6). Second consecutive outing. This session cannot engage with Zhou
+    et al. (2025) on temperature/humidity, and cannot be compared with 15 Aug on
+    environmental grounds.
+
+D5  QC HOLD ON THE 406.25 STATIC RUN. Two files exceed the 15.0 m rolling-median
+    drift limit: pucklog_D4DB1C_8.csv (180 m marker, drift 19.7 m) and
+    pucklog_D4DB1C_9.csv (210 m marker, drift 15.9 m). The 180 m file coincides
+    with the field-note entry "180m - few people walked by" (see INTERFERENCE
+    ANNOTATIONS). Both files also show the largest warm-up deltas in the run
+    (+9.1 m and +10.5 m first-5-s vs remainder).
+
+    RESOLVED 2026-09-11 (T6). OPERATOR RULING: BOTH FILES KEPT. Neither is
+    discarded and neither is re-run. The drift is documented as an observation,
+    not treated as a defect: the 180 m excursion has a recorded physical cause in
+    the field notes ("180m - few people walked by"), both files carry the full
+    N=100 attempts with zero timeouts and zero errors, and both sit inside the
+    ascending median sequence with no ordering ambiguity. Reporting them rather
+    than dropping them follows the project rule that adverse findings are findings.
+
+    NOTE ON THE VERDICT: qc_session.py still returns HOLD for this run, because
+    the 15.0 m rolling-median drift limit is a machine threshold and both files
+    exceed it. That verdict is left exactly as the tool emitted it and is NOT
+    overridden in the analysis outputs. The operator disposition recorded here is
+    the human ruling that sits alongside it.
+      Tool verdict:          HOLD (machine threshold exceeded)
+      Operator disposition:  KEEP BOTH, ANOMALY DOCUMENTED
+
+D6  240 m STATIC ERROR AT 406.25 kHz. Kept static file at the 240 m marker
+    (pucklog_D4DB1C_11.csv) has median 269.9 m, signed error +29.9 m -- against
+    +4.0 to +15.0 m at every other 406.25 static marker, and +15.6 m at the same
+    marker in the 406.25 stop-and-go run. The discarded 240 m run
+    (pucklog_D4DB1C_10.csv) reads 265.6 m with a 62 m min-max spread. 1625 kHz at
+    the same marker reads +3.2 m (static) and +0.7 m (stop-and-go). Coincides with
+    the structure near the 240 m cone (SITE_NOTES; 15 Aug D7 recorded an IQR bump
+    at the same marker). NOT EXPLAINED.
+
+    CROSS-SESSION FINDING (recorded 2026-09-11, T10). The 240 m marker now
+    deviates on BOTH outings, and the deviation is bandwidth-dependent:
+
+      15 Aug, 1625 kHz    IQR bump: 5.5 m static / 4.6 m stop-and-go, against
+                          1.0-2.5 m at neighbouring markers (15 Aug D7).
+      22 Aug, 406.25 kHz  signed error +29.9 m static, +15.6 m stop-and-go.
+      22 Aug, 1625 kHz    signed error +3.2 m static, +0.7 m stop-and-go.
+
+    The same cone, the same structure (SITE_NOTES), across two outings, with an
+    effect roughly an order of magnitude larger at 406.25 kHz than at 1625 kHz.
+    That is the profile of bandwidth-dependent multipath at a fixed reflector --
+    a C4 failure-mode observation rather than a data defect.
+
+    NOT CLAIMED AS A RESULT. Two outings at one cone is an observation, not
+    evidence. It is recorded here so the day-3 measurement is designed to test it.
+
+    ACTION (day-3 priority): re-measure at the identical cone position at BOTH
+    bandwidths, with site photographs of the structure, before any interpretation
+    is offered. Directly parallel to 15 Aug D6.
+
+D7  TOOL HEURISTIC DISAGREES WITH THE ARRIVAL LOG, 406.25 STOP-AND-GO.
+    qc_session.py nearest-marker matching returned no dwell for the 180 m and 240 m
+    markers, matched two adjacent segments (211-259 s, 261-283 s -- one dwell split
+    in two) both to 270 m, and matched the 409-486 s segment to 210 m. The operator
+    arrival log resolves all of it: ten dwells, single monotonic 300->30 descent.
+    The QC tables recompute the stop-and-go rows on lap windows and supersede the
+    tool's stop-and-go output. The 1625 run needed no correction (tool and lap log
+    agree at all ten markers). Cause: the 406.25 offset is comparable to half the
+    30 m marker spacing, so nearest-marker matching on the reading shifts
+    assignments.
+
+    IMPORTANT: the mis-assignment moved which MARKER a dwell was labelled with, but
+    barely moved the statistics -- recomputing on lap windows changes no 406.25
+    median by more than 0.6 m and no 1625 median by more than 0.3 m. The per-marker
+    medians reported before and after the correction agree; what changed is that
+    two markers now have rows at all.
+
+    ACTION for the tool (not done here): qc_session.py should accept the arrival log
+    as an input and use it for dwell attribution, falling back to the heuristic only
+    when absent. Today the heuristic is the only path even when ground truth exists.
+
+D8  RESPONDER COVERAGE AND RSSI. The Responder was offloaded for the 406.25 sweep
+    only (single boot, 3192 rows, 3979 s covering the whole sweep); NO Responder
+    data exists for the 1625 sweep. Additionally, every RANGING_REQ row in the
+    Responder log carries rssi_dbm = -150, a constant, physically implausible value
+    (-150 is the ranging-RSSI register zero point, reg 0x0964 with dBm = reg-150,
+    i.e. the register read back 0). Responder-side link-asymmetry analysis is
+    therefore unavailable for this session. Initiator RSSI is unaffected and reads
+    normally (-66 to -91 dBm). ACTION: bench-check the Responder RSSI register read
+    before day 3.
+
+D9  TWO EMPTY BOOT STUBS. pucklog_D4DB1C_16.csv and _17.csv (406.25 set) contain
+    header lines only, zero data rows -- two boots into NORMAL mode that logged no
+    ranging, between the rejected and the accepted stop-and-go runs. Kept as a record
+    of the boots; carry no data; excluded from all analysis.
+
+---------------------------------------------------------------------------
+INTERFERENCE ANNOTATIONS (from field notes, mapped to cones and file time)
+---------------------------------------------------------------------------
+
+Source: data/ranging_experiments/2026-08-22_GMATownship_session02/field_notes-2026-08-22.txt
+
+406.25 STATIC
+  120 m  "Puck tripod fall"        -> pucklog_D4DB1C_4.csv  DISCARDED, redone as _5
+  150 m  "car interference"        -> pucklog_D4DB1C_6.csv  DISCARDED, redone as _7
+  180 m  "few people walked by"    -> pucklog_D4DB1C_8.csv  KEPT. No retake was taken.
+                                      This is the file that trips the QC drift HOLD
+                                      (D5): 19.7 m rolling-median drift, reading
+                                      falling 193.1 -> 172.4 m across the dwell,
+                                      IQR 8.5 m against 3.4-4.3 m at the four
+                                      markers below it. Affected window: the whole
+                                      file, 0-67.9 s since boot.
+  240 m  "Buffalo walked in"       -> pucklog_D4DB1C_10.csv DISCARDED, redone as _11
+  300 m  "Retake before of interference" / "Shrub and House Rerun"
+                                   -> pucklog_D4DB1C_13.csv DISCARDED, redone as _14
+
+406.25 STOP-AND-GO
+  "Done Twice first rejected"      -> pucklog_D4DB1C_15.csv DISCARDED, redone as _18
+  No per-cone interference recorded for the accepted run.
+
+1625 STATIC
+  150 m  "Car interference"        -> pucklog_D4DB1C_5.csv  KEPT, no retake taken.
+                                      Median 147.5 m, error -2.5 m, IQR 1.3 m, drift
+                                      within limits -- no QC flag raised on this file.
+                                      Affected window: whole file, 0-71.5 s.
+  180 m  "Human interference"      -> pucklog_D4DB1C_6.csv  KEPT, no retake taken.
+                                      Median 181.3 m, error +1.3 m, IQR 1.6 m, no QC
+                                      flag raised. Affected window: whole file,
+                                      0-71.5 s.
+
+1625 STOP-AND-GO
+  150 m  "Human interference"      -> pucklog_D4DB1C_11.csv, arrival-log dwell window
+                                      518.6-589.3 s since boot. Median 148.6 m,
+                                      error -1.4 m, IQR 1.6 m -- mid-pack among the
+                                      ten dwells of that run (IQRs range 0.9-3.3 m;
+                                      widest are 240 m at 3.3 m and 300 m at 2.8 m).
+                                      No QC flag raised, and nothing in the numbers
+                                      marks this dwell out from its neighbours.
+
+LIMIT ON THESE ANNOTATIONS: the field notes give no clock times, so an interference
+event can be pinned to a FILE (static runs, one file per marker) but NOT to a
+timestamp range within a file. For the stop-and-go runs the cone is known but the
+dwell window is the heuristic one, not an operator-confirmed one (D2).
+
+---------------------------------------------------------------------------
+FILE DISPOSITIONS
+---------------------------------------------------------------------------
+
+--- 406.25 kHz sweep, offload set 20260822_162424-Initiator ---
+
+pucklog_D4DB1C_1.csv    30 m   static  N=100  OK
+pucklog_D4DB1C_2.csv    60 m   static  N=90   OK (short of N=100, see D1)
+pucklog_D4DB1C_3.csv    90 m   static  N=90   OK (short of N=100, see D1)
+pucklog_D4DB1C_4.csv   120 m   static  N=70   STATUS: DISCARDED
+                                              REASON: field notes 2026-08-22, item 1:
+                                              "120m  retake - Puck tripod fall".
+                                              SUPERSEDED BY: pucklog_D4DB1C_5.csv.
+                                              CSV MOVE TO data/discarded/: PENDING --
+                                              not performed. Same rationale as the
+                                              15 Aug file 5 (T5, still unsettled):
+                                              the raw offload directory is not yet
+                                              archived under data/ranging_experiments/,
+                                              and removing a file from it would break
+                                              the offload manifest integrity check
+                                              that qc_session runs. Move at the
+                                              archive step, per methodology 11.
+pucklog_D4DB1C_5.csv   120 m   static  N=90   OK (redo of file 4; short of N=100, D1)
+pucklog_D4DB1C_6.csv   150 m   static  N=20   STATUS: DISCARDED
+                                              REASON: field notes 2026-08-22, item 2:
+                                              "150m retake - car interference."
+                                              SUPERSEDED BY: pucklog_D4DB1C_7.csv.
+                                              QC also observes only 20 attempts
+                                              (<50% of spec), consistent with a
+                                              mid-run power-cycle.
+                                              CSV MOVE TO data/discarded/: PENDING
+                                              (as file 4 above).
+pucklog_D4DB1C_7.csv   150 m   static  N=110  OK (redo of file 6; meets N=100)
+pucklog_D4DB1C_8.csv   180 m   static  N=100  HOLD -- drift 19.7 m (D5); coincides
+                                              with "180m - few people walked by"
+pucklog_D4DB1C_9.csv   210 m   static  N=100  HOLD -- drift 15.9 m (D5)
+pucklog_D4DB1C_10.csv  240 m   static  N=90   STATUS: DISCARDED
+                                              REASON: field notes 2026-08-22, item 4:
+                                              "240m - retake - Buffalo walked in."
+                                              SUPERSEDED BY: pucklog_D4DB1C_11.csv.
+                                              CSV MOVE TO data/discarded/: PENDING
+                                              (as file 4 above).
+pucklog_D4DB1C_11.csv  240 m   static  N=90   OK (redo of file 10; short of N=100, D1)
+                                              +29.9 m signed error flagged -- see D6
+pucklog_D4DB1C_12.csv  270 m   static  N=90   OK (short of N=100, see D1)
+pucklog_D4DB1C_13.csv  300 m   static  N=70   STATUS: DISCARDED
+                                              REASON: field notes 2026-08-22, item 5:
+                                              "300m - Retake before of interference."
+                                              SUPERSEDED BY: pucklog_D4DB1C_14.csv,
+                                              field-note item 6: "300m - Shrub and
+                                              House Rerun."
+                                              CSV MOVE TO data/discarded/: PENDING
+                                              (as file 4 above).
+pucklog_D4DB1C_14.csv  300 m   static  N=90   OK (redo of file 13; short of N=100, D1)
+pucklog_D4DB1C_15.csv  300-0   stop-and-go  N=410  STATUS: DISCARDED
+                                              REASON: field notes 2026-08-22,
+                                              "--406 Stop & Go Run-- Done Twice first
+                                              rejected." Run abandoned after the 300 m
+                                              dwell and part of the descent (287 s of
+                                              a ~1020 s run; reached ~248 m).
+                                              SUPERSEDED BY: pucklog_D4DB1C_18.csv.
+                                              CSV MOVE TO data/discarded/: PENDING
+                                              (as file 4 above).
+pucklog_D4DB1C_16.csv    --      --    N=0    BOOT STUB. Header only, no data rows.
+                                              Excluded from all analysis (D9).
+pucklog_D4DB1C_17.csv    --      --    N=0    BOOT STUB. Header only, no data rows.
+                                              Excluded from all analysis (D9).
+pucklog_D4DB1C_18.csv  300-0   stop-and-go  N=1490 attempts, single boot, whole marker
+                                              sequence. Dwell segmentation heuristic
+                                              (D2) and walk-order-corrected (D7).
+
+--- 406.25 kHz sweep, offload set 20260822_163115-Responder ---
+
+pucklog_DB5110_1.csv    --   responder diagnostic  N=3192 rows (1 BOOT, 1 READY,
+                                              3190 RANGING_REQ) over 3979 s, single
+                                              boot covering the whole 406.25 sweep.
+                                              rssi_dbm constant at -150 -- see D8.
+
+--- 1625 kHz sweep, offload set 20260822_174415-Initiator ---
+
+pucklog_D4DB1C_1.csv    30 m   static  N=100  OK
+pucklog_D4DB1C_2.csv    60 m   static  N=100  OK
+pucklog_D4DB1C_3.csv    90 m   static  N=110  OK
+pucklog_D4DB1C_4.csv   120 m   static  N=110  OK
+pucklog_D4DB1C_5.csv   150 m   static  N=110  OK; "Car interference" noted, no retake
+pucklog_D4DB1C_6.csv   180 m   static  N=110  OK; "Human interference" noted, no retake
+pucklog_D4DB1C_7.csv   210 m   static  N=110  OK
+pucklog_D4DB1C_8.csv   240 m   static  N=110  OK
+pucklog_D4DB1C_9.csv   270 m   static  N=110  OK
+pucklog_D4DB1C_10.csv  300 m   static  N=130  OK
+pucklog_D4DB1C_11.csv  300-0  stop-and-go  N=1560 attempts, single boot, whole marker
+                                              sequence. Dwell segmentation heuristic
+                                              (D2); tool assignment agrees with walk
+                                              order at all ten markers.
+
+Timeouts and errors: ZERO across every file of both sweeps (0 TIMEOUT, 0 ERROR,
+all-outcomes denominator), Initiator and Responder alike.
+
+---------------------------------------------------------------------------
+CLASSIFICATION
+---------------------------------------------------------------------------
+
+First outing to run BOTH bandwidths, so this is the first session that carries a
+matched 406.25-vs-1625 comparison at all ten markers in both tiers.
+
+Classification: VALIDATION-GRADE for both bandwidths, both tiers. NOT
+contribution-grade, on: D1 (N below spec at 406.25 static), D3 (no per-file
+metadata), D4 (no environmental log), and D5 (406.25 static run is QC HOLD, not
+PASS).
+
+This session is materially stronger than 15 Aug on ground truth: the methodology 7.3
+arrival log EXISTS for both stop-and-go runs, so dwell-to-marker attribution is
+operator-confirmed rather than heuristic. The 15 Aug blocker on that point does NOT
+apply here; D2 is now a filing/field-recording deviation, not a missing-ground-truth
+one.
+
+Tier 1 (static, replication tier) requires 1 session per bandwidth. The 1625 static
+run is PASS at N>=100 on every marker; whether it closes Tier 1 at 1625 depends on
+whether D3/D4 are judged disqualifying -- operator call, not settled here. The
+406.25 static run cannot close Tier 1 at 406.25 while it is HOLD (D5) and N is short
+(D1).
+
+Tier 2 (the C2 contribution) requires >=2 sessions on >=2 separate days per
+bandwidth. With 15 Aug (1625 only) and 22 Aug (both), the 1625 stop-and-go now has
+two sessions on two days -- but the 15 Aug one is not contribution-grade (no arrival
+log, D2 there), so the pair does not yet clear the bar. The 406.25 stop-and-go has
+one session, and it is the strongest run of the outing: arrival-log ground truth,
+95-109 attempts per marker, zero timeouts, PASS. NO TIER IS CLOSED AS
+CONTRIBUTION-GRADE by this session, but the 22 Aug stop-and-go runs are the first
+two that could count toward one once D3/D4 are addressed.
+
+---------------------------------------------------------------------------
+TODO -- AWAITING ISHAAN
+---------------------------------------------------------------------------
+
+T1  RESOLVED 2026-09-11 (partially). Weather recovered from phone screenshots and
+    entered above: 34 C, 56 % RH, partly cloudy, 11 kph W, at 15:07 IST. PERMANENTLY
+    NOT CAPTURED: wall-clock START/END times, RF environment notes, and any conditions
+    after 15:07 -- the 16:43 capture turned out to be a stale re-display of the same
+    reading. 15 Aug humidity is likewise permanently not captured. These are recorded
+    as not-captured, not left open.
+T2  PARTIALLY RESOLVED 2026-09-11. TAPE ACCURACY CLASS IS III, recorded above with
+    the resulting instrument MPE (+/-1.3 cm at 30 m, +/-12.1 cm at 300 m).
+    STILL OPEN: the TOTAL ground-truth bound. The instrument figure is a floor, not a
+    budget -- tape sag, tension, leapfrog accumulation and cone placement are all
+    unquantified. Operator decision (2026-09-11) is to leave the total bound OPEN
+    pending a sag/tension estimate on a future outing, rather than adopt the old
+    +/-50 cm figure by default. Every signed-error figure in this session therefore
+    still carries the open item. OD-METH-3 and OD-METH-5 remain open on this point.
+T3  Site photographs of the marker line, of the structure near the 240 m cone, and
+    of the shrub/house near the 300 m cone. Carried forward from 15 Aug T4.
+T4  Mount setup, mount types, mount height, antenna orientation, carry method, and
+    USB power sources for this session -- none were recorded.
+T5  RESOLVED 2026-09-11. STATIC FILE->MARKER MAPPING CONFIRMED, BOTH BANDWIDTHS.
+    Operator reviewed the 406.25 mapping file by file against the field notes and
+    accepted it; the 1625 mapping (ten files, ten markers, no retakes) is confirmed
+    with it. Both session_plan.json files now read OPERATOR-CONFIRMED 2026-09-11.
+    The reconciliation that settled it: the 14 static medians are strictly ascending
+    with no ties or reversals, so the ORDER cannot be wrong; the field notes record
+    retakes at exactly 120/150/240/300 m and there are exactly four adjacent
+    same-level file pairs; 10 cones + 4 retakes = 14 files, with nothing left over.
+    The evidence trail below is retained so the basis stays auditable.
+    (Original entry follows.) The arrival logs cover the stop-and-go runs only, so
+    they did not settle this on their own.
+    Evidence for the derived mapping: boot order is monotonic; the field notes record
+    retakes at exactly 120/150/240/300 m, matching the four adjacent same-level file
+    pairs; and each static file median matches its assigned marker's lap-confirmed
+    stop-and-go dwell more closely than any other marker. The 1625 static mapping is
+    unambiguous (ten files, ten markers, no retakes) and needs only a yes.
+    NOTE: stop-and-go dwell->marker attribution is NO LONGER pending -- it is
+    operator-confirmed from the lap logs for both bandwidths (D2, MARKER_ARRIVAL_LOG).
+T6  RESOLVED 2026-09-11 -- see D5. OPERATOR RULING: BOTH FILES KEPT, anomaly
+    documented; neither re-run nor discarded. qc_session.py's HOLD verdict is left
+    standing and unmodified in the analysis outputs (tool verdict HOLD, operator
+    disposition KEEP BOTH). Original entry: keep, re-run or discard
+    pucklog_D4DB1C_8.csv (180 m) and
+    pucklog_D4DB1C_9.csv (210 m) of the 406.25 static run. The 406.25 static
+    verdict stays HOLD until this is answered.
+T7  DEFERRED 2026-09-11 -- day-3 planning decision, not a property of the data
+    published here. Left open deliberately; settle before the next outing.
+    DAY-3 406.25 DWELL CONVENTION: 70 s (cadence x 100, rounded up) or 75 s (the
+    value that yields 100 attempts once the methodology 7.2 first-5-s discard is
+    counted inside the dwell, as it is at 1625 kHz). See methodology 4.3.
+T8  Whether to move the five DISCARDED CSVs to data/discarded/ now or at the
+    archive step -- the same question as 15 Aug T5, still unsettled. This log
+    follows the 15 Aug precedent (PENDING) so the two sessions stay consistent.
+T9  D8: bench-check the Responder ranging-RSSI register read (constant -150), and
+    decide whether the Responder is offloaded per sweep from day 3 on.
+T10 PROMOTED 2026-09-11 to a DAY-3 PRIORITY -- see D5/D6. The 240 m marker now
+    deviates on both outings with a bandwidth-dependent signature (+29.9 m at
+    406.25 kHz vs +3.2 m at 1625 kHz, static). Recorded as a C4 failure-mode
+    observation, explicitly NOT claimed as a result on two outings' evidence.
+    DAY-3 ACTION: re-measure at the identical cone position at BOTH bandwidths,
+    with site photographs of the structure, before any interpretation is offered.
+
+T11 D2/D7 TOOLING: teach tools/qc_session.py to accept the arrival log and use it
+    for dwell attribution, falling back to the plateau heuristic only when no log
+    exists. Today the heuristic runs even when operator ground truth is available,
+    and at 406.25 it mislabelled two of ten markers.
+T12 D2 PROCEDURE: fix the lap convention in methodology 7.3. The step as written
+    says one press ON ARRIVAL at each cone; what was actually run was a press at the
+    END of each dwell and each transit. Both are usable -- decide which is the
+    standard and state it, so the next session is unambiguous.
+T13 D2 FILING: the lap sheets were left in tools/offload/offload/, which is
+    gitignored. Copies are now filed with this session. Add "file the arrival log
+    with the session" to the post-session checklist.
+
+NOTES: This log follows the methodology 6.3 session-log template and the layout of
+the 15 Aug session log. Field notes for this session are filed alongside it as
+field_notes-2026-08-22.txt; they contain retake and interference entries only -- no
+environmental readings and no wall-clock times. The methodology 7.3 arrival logs are SEPARATE files and DO exist for both
+stop-and-go runs; see MARKER_ARRIVAL_LOG.

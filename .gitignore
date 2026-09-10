@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------------
+# Pack Pucks — .gitignore
+#
+# Branch policy (see CLAUDE.md): `main` is PUBLIC, `private` is local-only.
+# Entries below that name private docs are a SAFETY NET for `main` — they do
+# not affect those files on `private`, where they are already tracked
+# (.gitignore never applies to already-tracked files).
+# ---------------------------------------------------------------------------
+
+# --- Private documents: must never reach the public `main` branch -----------
+docs/State.md
+docs/FIRMWARE_PLAN.md
+docs/Methodology.md
+docs/guardrails.md
+docs/research_strategy.md
+docs/open_decisions.md
+docs/Observations.md
+docs/FIELD_SOP.md
+paper/
+CLAUDE.md
+firmware/CLAUDE.md
+CODE_REVIEW.md
+
+# --- Third-party literature -------------------------------------------------
+# Copyrighted publisher PDFs (IEEE / Elsevier / arXiv). Kept locally for
+# refs.bib verification; never redistributed from this repository.
+docs/*.pdf
+
+# --- Raw offload staging ----------------------------------------------------
+# Working directory for tools/offload/offload.py. Curated, published datasets
+# are copied into data/ranging_experiments/<session>/ instead.
+tools/offload/offload/
+
+# --- Build artefacts --------------------------------------------------------
+build/
+*.elf
+*.bin
+__pycache__/
+venv/
+
+# --- Editor / OS ------------------------------------------------------------
+.claude/
+.DS_Store
+Thumbs.db
+
+tools/offload/field_notes/

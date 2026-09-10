@@ -1,0 +1,250 @@
+SESSION_ID:            2026-08-15-GMATownship-S1
+START_UTC:             not recorded                           # not recorded in the field
+START_LOCAL:           not recorded                           # not recorded in the field
+END_UTC:               not recorded                           # final offload ran 2026-08-15T13:17:55Z
+                       (= 18:47 IST); the partial offload ran 12:02:24Z (= 17:32 IST)
+SITE:                  GMA township, Kota, Rajasthan
+SITE_COORDINATES:      25.224074958816207, 75.8140609418462   (operator-supplied)
+SITE_NOTES:            Partially built township. Straight LOS stretch carrying the
+                       30-300 m marker line. Known structure near the 240 m cone.
+                       NOTE ON SITES: this campaign runs at two sites in different
+                       cities -- GMA township (Kota, Rajasthan) and Parade Ground
+                       (Hyderabad, Telangana), ~1100 km apart. Not a transcription
+                       error; confirmed by the operator 2026-09-11.
+INDOOR_OUTDOOR:        outdoor
+TEMP_C:                30                                     # phone weather, 18:27 IST
+HUMIDITY_PCT:          NOT CAPTURED                           # the screenshot pair ends
+                       above the humidity card; no value exists for this outing and
+                       none is inferred
+WEATHER:               Cloudy; feels like 36 C; high 30 / low 27
+WIND:                  10 kph from W
+RF_ENV_NOTES:          not recorded. Rain for the day <1.3 mm.
+ENV_SOURCE:            environment/Screenshot_20260815-182738.png and -182742.png
+                       (18:27 IST, mid-session -- between the two offloads)
+
+TIER:                  1 (static) + 2 (semi-mobile stop-and-go), single bandwidth
+SWEEP_ORDER:           1625 only
+BW_SWEEP_1:            1625 kHz
+BW_SWEEP_2:            n-a                                    # 406.25 kHz sweep NOT run
+MARKER_SET:            10 cones, 30-300 m at 30 m spacing (methodology 5.1)
+DISTANCES_TESTED:      30,60,90,120,150,180,210,240,270,300 (+ ad hoc 330 in the static run)
+
+RUNS:                  2
+  RUN static       -> boots b1..b11, one file per marker (per-marker boot, methodology 4.6)
+  RUN stop_and_go  -> boot b12, single file for the whole marker sequence
+  (b13 is a boot stub, no data rows -- see FILE DISPOSITIONS)
+
+QC:                    tools/qc_session.py v1.0.0, run 2026-08-21T12:47Z
+  RUN static       -> PASS
+  RUN stop_and_go  -> PASS
+  RUN unassigned   -> PASS (b13 stub; no marker-attributable data)
+  Report: data/analysis/2026-08-15_GMATownship_184714_qc/
+
+MOUNT_SETUP_USED:      matched throughout
+MOUNT_HEIGHT_CM:       150 (both endpoints, static and carried)
+MOUNT_TYPE_A / _B:     TODO                                   # matched height confirmed; types not recorded
+ANTENNA_ORIENTATION_A / _B: vertical
+CARRY_METHOD (Tier 2): short pole at matched 1.5 m, antenna vertical, arm's reach (methodology 8.2)
+
+GROUND_TRUTH_METHOD:   taut fibreglass tape, two-person leapfrog, read from the 0
+                       graduation; pre-written cumulative tally sheet; each cone
+                       numbered with its distance at placement; full recount after
+                       layout (methodology 5.2)
+GROUND_TRUTH_TOLERANCE: OPEN -- instrument class recorded, total bound not yet set.
+                       TAPE ACCURACY CLASS: III  (recorded 2026-09-11)
+                       Class III maximum permissible error is +/-(0.6 + 0.4 L) mm, L
+                       rounded up to whole metres:
+                            30 m  ->  +/-12.6 mm  (+/-1.3 cm)
+                           300 m  -> +/-120.6 mm  (+/-12.1 cm)
+                       THAT IS THE INSTRUMENT FLOOR ONLY. The total ground-truth budget
+                       must also carry tape sag, tension variation, leapfrog accumulation
+                       across 10 segments and cone-placement precision -- none of which
+                       were recorded on this outing. Until that procedural component is
+                       estimated, NO TOTAL BOUND IS STATED and every signed-error figure
+                       in this session still carries the open item. The previous pre-set
+                       +/-50 cm bound is NOT assumed to carry over.
+CONE_PLACEMENT_FILE:   TODO                                   # cone_placement.csv not written for this session
+SITE_PHOTOS:           TODO                                   # methodology 5.2 step 7 photographs to be added
+
+INITIATOR_BOARD_ID:    0x541BBDD4DB1C
+RESPONDER_BOARD_ID:    TODO                                   # Responder not offloaded this session
+INITIATOR_USB_POWER_SOURCE / RESPONDER_...: TODO
+FW_VERSION:            0.9-field-hardening                    (from offload banner)
+CSV_SCHEMA_VERSION:    1                                      (from offload banner)
+RADIO (banner):        2400.0 MHz, BW 1625.00 kHz, SF 8, CR 4/7, 12 dBm
+WIFI_OFF / BT_OFF:     1 / 1                                  (banner self-report, FR-1.6)
+FILTER_IN_FIRMWARE:    none
+RAW_LOGGING:           true
+DISTANCE_CLAMPING_IN_LOG: false
+PUCK_BOOT_UTC:         TODO per file                          # CSV line-2 operator metadata not written
+OFFLOAD_SESSIONS:      20260815_173207-Initiator (partial, 2026-08-15T12:02:24Z, files 1-2)
+                       20260815_184714-Initiator (full, 2026-08-15T13:17:55Z, files 1-13)
+                       RESOLVED 2026-08-22 -- see T6. The two sets are DISJOINT: the
+                       boot indices were REUSED after a FORMAT, so "file 2" in each set
+                       is a different physical run. The 184714 set is canonical and is
+                       the one QC'd and described by this log.
+
+---------------------------------------------------------------------------
+DEVIATIONS FROM PROTOCOL
+---------------------------------------------------------------------------
+
+D1  DWELL SHORT OF SPEC. Dwell run at ~50 s rather than the ~70 s that 100 attempts
+    require at the measured ~655 ms cycle (methodology 4.3 / 7.2). Result: N per
+    marker below the N=100 spec -- 70 attempts on most static files, 60 at the 60 m
+    marker, 100 at 150 m (the redo), 110 at the ad hoc 330 m. Stop-and-go dwells ran
+    43-167 attempts per marker. Recorded as a deviation against the sessions-per-tier requirement, not
+    as a passing run.
+
+D2  NO OPERATOR ARRIVAL LOG for the single-boot stop-and-go run. Dwell-to-marker
+    attribution in the QC report is HEURISTIC (rolling-median plateau detection,
+    nearest-marker match), not operator-confirmed. This is exactly the case that
+    methodology 7.3 was written to prevent; the arrival log is mandatory from the
+    next outing.
+
+D3  NO CSV LINE-2 OPERATOR METADATA on any file (methodology 7.4 step incomplete).
+    SITE / SESSION_ID / RUN_ID / BOOT_UTC / TRUE_DISTANCE_M are absent from every
+    file. Ground truth for this session lives in the operator-supplied session plan
+    at data/analysis/2026-08-15_GMATownship_184714_qc/session_plan.json instead. The
+    raw CSVs were deliberately left unedited.
+
+D4  ENVIRONMENTAL LOGGING NOT DONE. No weather screenshot, no temperature/humidity,
+    no wind or RF-environment notes (environmental-logging requirement / methodology 6). This session
+    cannot engage with Zhou et al. (2025) on temperature/humidity.
+
+D5  MARKER COVERAGE, STATIC RUN. The official 300 m cone was MISSED in the static
+    run, and an ad hoc 330 m cone was recorded instead. Consequence: the static run
+    has NO far anchor at 300 m; the only 300 m coverage in this session comes from
+    the stop-and-go run's first dwell. The 330 m point is off the frozen marker set.
+
+D6  330 m ERROR FLAGGED. Static median at the ad hoc 330 m cone is 318.9 m, a signed
+    error of -11.1 m -- far outside the -6.6 to +6.6 m spread of every other static
+    marker in this session. Not explained. ACTION: re-check at the same cone
+    position on the next outing before any interpretation.
+
+D7  240 m IQR BUMP, BOTH RUNS. IQR 5.5 m (static) and 4.6 m (stop-and-go) at the
+    240 m marker, against 1.0-2.5 m at neighbouring markers. Coincides with the
+    structure near that cone (SITE_NOTES). Retained, not dropped; interpreted with
+    the structure in mind. Site photographs are TODO and are needed to document it.
+
+    CROSS-SESSION FOLLOW-UP (recorded 2026-09-11). The 22 August outing found the
+    same marker deviating again, and far more strongly at the lower bandwidth:
+    +29.9 m signed error at 406.25 kHz static against +3.2 m at 1625 kHz static
+    (22 Aug D6). Read together with this IQR bump, the 240 m cone now shows a
+    repeatable, bandwidth-dependent deviation at a fixed structure -- the profile
+    of multipath at a reflector, and a C4 failure-mode candidate. NOT claimed as a
+    result on two outings' evidence. Day-3 action is recorded in the 22 Aug log
+    (T10): re-measure at the identical cone position at BOTH bandwidths, with site
+    photographs of the structure.
+
+---------------------------------------------------------------------------
+FILE DISPOSITIONS
+---------------------------------------------------------------------------
+
+pucklog_D4DB1C_1.csv   30 m    static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_2.csv   60 m    static   N=60    OK (short of N=100, see D1)
+pucklog_D4DB1C_3.csv   90 m    static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_4.csv   120 m   static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_5.csv   150 m   static   N=20    STATUS: DISCARDED
+                                                REASON: buffalo/cow interference --
+                                                livestock crossed the measurement line
+                                                mid-run (operator, 2026-09-11). Matches
+                                                the earlier note "bad run, redone as
+                                                pucklog_D4DB1C_6.csv" and the QC
+                                                observation of only 20 attempts (<50% of
+                                                spec), the run having been abandoned when
+                                                the animals entered the path. SUPERSEDED
+                                                BY: pucklog_D4DB1C_6.csv.
+                                                CSV MOVE TO data/discarded/: PENDING --
+                                                not performed. The raw offload directory
+                                                is not yet archived under
+                                                data/ranging_experiments/, and removing
+                                                the file from it would break the offload
+                                                manifest integrity check that qc_session
+                                                runs. Move it as part of the archive
+                                                step, per methodology 11.
+pucklog_D4DB1C_6.csv   150 m   static   N=100   OK (redo of file 5; meets N=100)
+pucklog_D4DB1C_7.csv   180 m   static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_8.csv   210 m   static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_9.csv   240 m   static   N=70    OK (short of N=100, see D1; IQR bump D7)
+pucklog_D4DB1C_10.csv  270 m   static   N=70    OK (short of N=100, see D1)
+pucklog_D4DB1C_11.csv  330 m   static   N=110   AD HOC marker, off the frozen set (D5);
+                                                -11.1 m error flagged (D6)
+pucklog_D4DB1C_12.csv  30-300  stop-and-go  N=1320 attempts, single boot, whole marker
+                                                sequence. Dwell segmentation heuristic
+                                                (D2).
+pucklog_D4DB1C_13.csv  --      --       N=0     BOOT STUB. No data rows -- a boot into
+                                                NORMAL mode with no ranging logged. Kept
+                                                as a record of the boot; carries no data
+                                                and is excluded from all analysis.
+
+Timeouts and errors: ZERO across every file in both runs (0 TIMEOUT, 0 ERROR,
+all-outcomes denominator). This is why the measured ~655 ms cadence
+is so tight in this session -- see the FSD FR-2.1 amendment on no-response cycles.
+
+---------------------------------------------------------------------------
+CLASSIFICATION
+---------------------------------------------------------------------------
+
+Both runs are the 1625 kHz halves only. Classification: VALIDATION-GRADE 1625 kHz
+halves of Tier 1 (static) and Tier 2 (semi-mobile stop-and-go).
+
+NO TIER IS COMPLETED by this session. C2 requires the matched 406.25-vs-1625 kHz
+comparison, and the 406.25 kHz sweep was not run. Neither run counts toward Tier 2's
+>= 2-sessions-on->= 2-days requirement as contribution-grade data, given D1 (N below
+spec), D2 (no arrival log), D3 (no per-file metadata) and D4 (no environmental log).
+
+---------------------------------------------------------------------------
+TODO -- AWAITING ISHAAN
+---------------------------------------------------------------------------
+
+T1  Weather / environmental fields (TEMP_C, HUMIDITY_PCT, WEATHER, WIND,
+    RF_ENV_NOTES, START_UTC, END_UTC) -- from memory or phone history if recoverable,
+    otherwise recorded permanently as not-captured.
+T2  Tape accuracy class -> GROUND_TRUTH_TOLERANCE, and the keep-or-restate decision
+    on the previous pre-set +/-50 cm bound (methodology 5.3).
+T3  Discard REASON for pucklog_D4DB1C_5.csv, in Ishaan's own words.
+T4  Site photographs of the marker line, and specifically of the structure near the
+    240 m cone (D7).
+T5  Whether to move pucklog_D4DB1C_5.csv to data/discarded/ now or at the archive
+    step (see FILE DISPOSITIONS).
+T6  RESOLVED 2026-08-22. Relationship between the two 15 Aug offload sets.
+
+    FINDING: REUSED INDEX, not a same-file mismatch. The two sets are entirely
+    disjoint -- no file in 173207 matches any file in 184714.
+
+    Erase semantics, read from firmware source:
+      - createLogFile() (firmware/03_ranging/03_initiator/03_initiator.ino, the
+        "choose next boot_seq" scan) enumerates SPIFFS for pucklog_<board>_*.csv,
+        takes the highest numeric index N, and opens N+1. Indices are monotonic
+        only for as long as the earlier files remain on SPIFFS.
+      - The FORMAT command handler calls SPIFFS.format(), which erases every file.
+        After a FORMAT the scan finds nothing, so the next boot opens index 1 again.
+      - One boot = one file, opened "w" and appended until power-off; a later boot
+        never reopens an earlier index. A file therefore cannot shrink in place.
+
+    Evidence:
+      - 173207 file 1 = 3161 B, file 2 = 3161 B.
+        184714 file 1 = 3161 B, file 2 = 2741 B, file 3 = 3161 B.
+      - MD5 cross-check of all 15 files across both sets: NO pair matches.
+        173207/file1 and 184714/file1 are the same SIZE but different CONTENT
+        (first SUCCESS row 30.2434 m vs 32.8576 m).
+      - File 2 shrinking 3161 -> 2741 B at the same index is impossible without an
+        erase, per the semantics above.
+      - Both sets begin at the 30 m marker (173207: medians 29.3 m, 61.5 m;
+        184714: 32.0 m, 59.5 m), so 184714 is a restart of the sweep, not a
+        continuation of it.
+
+    CONCLUSION: a FORMAT ran between the 12:02:24Z and 13:17:55Z offloads, resetting
+    boot_seq to 1. CANONICAL SET = 20260815_184714-Initiator (13 files, the complete
+    sweep; the set QC'd and described by this log, and the one the operator-confirmed
+    session plan maps).
+
+    STILL OPEN (small): 20260815_173207-Initiator holds two additional, un-QC'd
+    recordings at the 30 m and 60 m markers (N=70 each). Decide whether to keep them
+    as extra 15 Aug data or mark them superseded by the 184714 sweep. They are not
+    referenced by any table or plan today.
+T7  Responder board ID / power sources / mount types.
+
+NOTES: This log follows the methodology 6.3 session-log template. No prior session
+log file existed in the repository to copy the exact layout from; the canonical
+template was used instead.

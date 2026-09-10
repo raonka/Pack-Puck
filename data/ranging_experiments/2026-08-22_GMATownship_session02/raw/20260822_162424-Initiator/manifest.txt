@@ -1,0 +1,35 @@
+timestamp_utc: 2026-08-22T10:54:45.476991+00:00
+port: com7
+baud: 115200
+
+[BANNER]
+FW_VERSION: 0.9-field-hardening
+BOARD_ID: 0x541BBDD4DB1C
+ROLE: INITIATOR
+CSV_SCHEMA_V: 1
+WIFI_OFF: 1
+BT_OFF: 1
+RADIO: 2400.0 MHz, BW 406.25 kHz, SF 8, CR 4/7, 12 dBm
+MODE_SELECT_WINDOW_MS: 3000
+SPIFFS_FILE: <none>
+MODE: OFFLOAD
+
+[FILES]
+/pucklog_D4DB1C_1.csv  expected=4422  actual=4422  status=OK
+/pucklog_D4DB1C_2.csv  expected=4001  actual=4001  status=OK
+/pucklog_D4DB1C_3.csv  expected=4038  actual=4038  status=OK
+/pucklog_D4DB1C_4.csv  expected=3231  actual=3231  status=OK
+/pucklog_D4DB1C_5.csv  expected=4091  actual=4091  status=OK
+/pucklog_D4DB1C_6.csv  expected=1081  actual=1081  status=OK
+/pucklog_D4DB1C_7.csv  expected=4962  actual=4962  status=OK
+/pucklog_D4DB1C_8.csv  expected=4522  actual=4522  status=OK
+/pucklog_D4DB1C_9.csv  expected=4522  actual=4522  status=OK
+/pucklog_D4DB1C_10.csv  expected=4091  actual=4091  status=OK
+/pucklog_D4DB1C_11.csv  expected=4091  actual=4091  status=OK
+/pucklog_D4DB1C_12.csv  expected=4091  actual=4091  status=OK
+/pucklog_D4DB1C_13.csv  expected=3231  actual=3231  status=OK
+/pucklog_D4DB1C_14.csv  expected=4091  actual=4091  status=OK
+/pucklog_D4DB1C_15.csv  expected=18434  actual=18434  status=OK
+/pucklog_D4DB1C_16.csv  expected=236  actual=236  status=OK
+/pucklog_D4DB1C_17.csv  expected=236  actual=236  status=OK
+/pucklog_D4DB1C_18.csv  expected=67122  actual=67122  status=OK

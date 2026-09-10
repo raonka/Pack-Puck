@@ -60,7 +60,7 @@ SX1280Ranging radio = new Module(7, 9, 8, 36, spi);
 // 1625.0f. RadioLib rejects 400.0f / 1600.0f with INVALID_BANDWIDTH (-8). Flip
 // this one line and reflash both pucks for each bandwidth sweep run; the CSV
 // header (DR-1.1) self-describes the BW that produced each file.
-#define RADIO_BW_KHZ             1625.0f  // IR-3.3
+#define RADIO_BW_KHZ             1625.0f  // IR-3.3 (406.25f & 1625.0f)
 #define RADIO_SF                 8        // IR-3.4 — held constant across both bandwidths
 #define RADIO_CR                 7        // IR-3.5 — RadioLib cr=7 → register 0x03 (4/7)
 #define RADIO_TX_POWER_DBM       12       // IR-3.8

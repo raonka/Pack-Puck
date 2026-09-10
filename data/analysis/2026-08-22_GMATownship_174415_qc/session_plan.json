@@ -1,0 +1,53 @@
+{
+  "outing": "GMA township 2026-08-22 (day 2), offload session 20260822_174415-Initiator; 1625 kHz / SF8 sweep; markers 30-300 m at 30 m spacing; static sweep ascending 30->300, stop-and-go descending 300->30",
+  "note": "Operator-supplied plan. OPERATOR-CONFIRMED 2026-09-11 (day-2 session log T5 closed). The evidence below was reviewed file by file against the field notes and accepted; it is retained so the basis of the attribution stays auditable. The offloaded CSVs carry NO line-2 operator metadata (Methodology 7.4 step not completed), so ground truth lives in this plan rather than in the raw CSVs, which are left unedited. The 1625 kHz static sweep is unambiguous: exactly ten files in ascending boot order, one per marker, no retakes - matching the field notes, which record interference at 150 m and 180 m but no redo for this run. pucklog_D4DB1C_11.csv is the single-boot stop-and-go run. Marker distances are cone positions from the tape survey (Methodology 5.2); ground-truth tolerance is still OPEN (Methodology 5.3 / OD-METH-3). Dwell->marker attribution for the stop-and-go run is OPERATOR-CONFIRMED from the arrival log data/ranging_experiments/2026-08-22_GMATownship_session02/stopwatch_laps_data_1625.csv (21 laps = 10 dwells + 10 transits + one spurious 0.13 s double-press at lap 4, dropped; stopwatch started at puck boot, alignment offset +0.2 s). The lap log confirms a single monotonic 300->30 descent visiting all ten markers, and agrees with qc_session.py's nearest-marker heuristic at all ten.",
+  "markers_m": [
+    30,
+    60,
+    90,
+    120,
+    150,
+    180,
+    210,
+    240,
+    270,
+    300
+  ],
+  "runs": [
+    {
+      "run_id": "static",
+      "kind": "static",
+      "files": {
+        "pucklog_D4DB1C_1.csv": 30,
+        "pucklog_D4DB1C_2.csv": 60,
+        "pucklog_D4DB1C_3.csv": 90,
+        "pucklog_D4DB1C_4.csv": 120,
+        "pucklog_D4DB1C_5.csv": 150,
+        "pucklog_D4DB1C_6.csv": 180,
+        "pucklog_D4DB1C_7.csv": 210,
+        "pucklog_D4DB1C_8.csv": 240,
+        "pucklog_D4DB1C_9.csv": 270,
+        "pucklog_D4DB1C_10.csv": 300
+      }
+    },
+    {
+      "run_id": "stop_and_go",
+      "kind": "stop_and_go",
+      "markers_m": [
+        30,
+        60,
+        90,
+        120,
+        150,
+        180,
+        210,
+        240,
+        270,
+        300
+      ],
+      "files": {
+        "pucklog_D4DB1C_11.csv": null
+      }
+    }
+  ]
+}
