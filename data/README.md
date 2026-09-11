@@ -18,7 +18,7 @@ QC tool enforces — **will be published when the Part 1 preprint goes live.**
 Until then it is available on request. Reports and logs in this directory cite it by
 section number (e.g. `Methodology 7.2`); those citations resolve against the document
 that ships with the preprint. **If you need a copy before then, get in touch and one
-will be sent.**  <!-- TODO: contact line -->
+will be sent** — open an issue on this repository and ask.
 
 ---
 

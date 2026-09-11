@@ -1,116 +1,205 @@
 # Pack Pucks
 
-**An open, commodity-hardware platform for peer-to-peer radio ranging — and the field data it has produced.**
+**An open, commodity-hardware platform for peer-to-peer 2.4 GHz radio ranging — and the
+field measurements it has produced.**
 
-Two matchbox-sized devices tell each other how far apart they are, using nothing but
-the travel time of a 2.4 GHz radio signal between them. No GPS. No phone. No cloud.
-No fixed anchors. Each device shows the distance as a colour on an LED ring.
+Two matchbox-sized devices tell each other how far apart they are, using nothing but the
+travel time of a 2.4 GHz radio signal between them. No GPS. No phone. No cloud. No fixed
+anchors. Each device shows the distance as a colour on an LED ring.
 
-The point is what happens when infrastructure isn't there. A group spread out across a
-forest, a tunnel, a trailhead or a construction site has no reliable way to answer
-"how far away is everyone?" GPS needs sky, mesh radios need a network, and phones need
-both. Two pucks need only each other.
+The demo is the easy half. The point of this repository is the measurement: firmware,
+offload and QC tooling, the raw CSVs from every outing, and the analysis that produced
+every number below — published so the ranging behaviour of the SX1280 on off-the-shelf
+hardware can be checked rather than taken on trust.
 
-This repository is the platform and its measurements: firmware, the offload and QC
-tooling, the raw datasets from every outing, and the analysis that produced every
-figure below.
+> ### Headline result
+>
+> **22 August 2026 · ten tape-surveyed cones at 30 m spacing, 30–300 m · SF8 · both
+> bandwidths run back to back on the same line**
+>
+> At **1625 kHz** the median range error stays inside **±5 m at every marker**, both with
+> the endpoints static and with one carried. At **406.25 kHz** it does not — errors run
+> **10–12 m long on average**, as a systematic bias rather than scatter. The wider
+> bandwidth costs **4.7 % in cycle time**.
+>
+> **7,860 ranging exchanges across the two campaign outings: zero timeouts, zero errors.**
+
+| Where to look | |
+|---|---|
+| [`data/README.md`](data/README.md) | Datasets — sites, weather, per-session provenance, every field deviation |
+| [`data/analysis/2026-08-22_GMATownship_day2_qc_tables.md`](data/analysis/2026-08-22_GMATownship_day2_qc_tables.md) | The authoritative per-marker tables behind every figure here |
+| [`firmware/`](firmware/) | Arduino/C++ sources, both roles, by build phase |
+| [`docs/FSD.md`](docs/FSD.md) | Functional specification — requirements, pin map, CSV schemas |
+| [`tools/`](tools/) | Offload, CSV validation, session QC, figure generation |
 
 ---
 
-## Findings
+## Why build it
 
-Everything here comes from a single outing — **22 August 2026**, ten surveyed cones at
-30 m spacing from 30 m to 300 m, both bandwidths run back to back on the same line, at
-the same spreading factor, the same power, within hours of each other. That matching is
-the point: it is what isolates bandwidth from everything else.
+A group spread out along a forest trail, a trailhead, or a construction site has no
+reliable way to answer *"how far away is everyone?"* GPS needs sky, mesh radios need a
+network, and phones need both. Two pucks need only each other.
 
-Across both campaign outings, **8,000 ranging exchanges completed with zero timeouts
-and zero errors.**
+Pack Pucks is **GPS-independent by design** — no GPS receiver, no cellular link, no cloud
+service, no fixed anchors. It has **not** been tested in GPS-denied conditions, and no
+such claim is made: every measurement in this repository is outdoor and line-of-sight.
+The system's output is a coarse range estimate; the LED colour bands are a demonstration
+use case, not a research result.
 
-### Bandwidth dominates everything
+---
+
+## What was measured
+
+| | |
+|---|---|
+| Site | Open ground, GMA township, Kota, Rajasthan |
+| Markers | 10 traffic cones, 30 m spacing, 30 m → 300 m, tape-surveyed |
+| Radio | SX1280 @ 2400.0 MHz, SF8, CR 4/7, 12 dBm, address `0x12345678` |
+| Independent variable | **Bandwidth: 406.25 kHz vs 1625 kHz.** Nothing else changed. |
+| Tier 1 — static | Both endpoints stationary; ~90–130 exchanges per marker |
+| Tier 2 — semi-mobile | One endpoint carried 300 m → 30 m, pausing ~70 s at each cone |
+| Tier 2 ground truth | Operator arrival log — phone stopwatch lapped at every dwell and transit |
+
+Both bandwidths ran back to back on the same cone line, the same afternoon, at the same
+spreading factor and the same power. That matching is the whole point: it is what isolates
+bandwidth from site, weather, geometry and configuration.
+
+---
+
+## Results
+
+### 1. Bandwidth dominates the error budget
 
 ![Ranging accuracy by bandwidth](data/analysis/figures/bandwidth_accuracy.png)
 
-At **1625 kHz** the system holds inside ±5 m across the whole 30–300 m span. At
-**406.25 kHz** it doesn't — and the error is a *systematic positive bias*, not scatter.
-Distances come back consistently too long, by about 10 m, at almost every marker.
+| | 406.25 kHz | 1625 kHz | ratio |
+|---|---|---|---|
+| Mean absolute error — static | 11.1 m | **1.7 m** | 6.7× |
+| Mean absolute error — semi-mobile | 12.1 m | **1.7 m** | 7.1× |
+| Signed bias — static | **+10.5 m** | +0.4 m | — |
+| Signed bias — semi-mobile | **+12.1 m** | −0.2 m | — |
+| Worst single marker — static | **+29.9 m** (at 240 m) | +3.2 m (at 240 m) | — |
+| Mean IQR — static | 5.2 m | **1.7 m** | 3.0× |
+| Mean IQR — semi-mobile | 4.5 m | **1.8 m** | 2.6× |
 
-| | 406.25 kHz | 1625 kHz |
-|---|---|---|
-| Mean absolute error — static | 11.1 m | **1.7 m** |
-| Mean absolute error — semi-mobile | 12.1 m | **1.7 m** |
-| Worst marker — static | 29.9 m | **3.2 m** |
-| Signed bias — static | **+10.5 m** | +0.4 m |
-| Signed bias — semi-mobile | **+12.1 m** | −0.2 m |
-| Mean spread (IQR) — static | 5.2 m | **1.7 m** |
+Each cell aggregates ten per-marker values, where a marker's value is the median (or IQR)
+of the SUCCESS rows recorded at it. Per-marker tables are in
+[`data/analysis/2026-08-22_GMATownship_day2_qc_tables.md`](data/analysis/2026-08-22_GMATownship_day2_qc_tables.md).
 
-That is roughly a **7× accuracy advantage** and a **3× precision advantage** for the
-wider bandwidth, under conditions matched in every other respect.
+The 406.25 kHz error is **directional, not noisy** — distances come back too long at nine
+of ten markers when static, and at ten of ten when carried. A systematic bias of that
+shape is a different problem from imprecision, and potentially a correctable one; that is
+left for a calibration study, not asserted here.
 
-### Walking costs almost nothing — at the right bandwidth
+### 2. Carrying one endpoint costs almost nothing — at the right bandwidth
 
 ![Effect of motion](data/analysis/figures/motion_effect.png)
 
-Carrying one endpoint at walking pace, stopping at each cone, leaves 1625 kHz accuracy
-**unchanged**: 1.7 m static, 1.7 m semi-mobile. The 406.25 kHz bias is if anything
-slightly worse in motion (11.1 → 12.1 m).
+At 1625 kHz, mean absolute error is **1.7 m whether both endpoints sit on tripods or one
+is carried** — unchanged. At 406.25 kHz the bias is, if anything, slightly worse when
+carried (11.1 → 12.1 m).
 
-This is the measurement that motivated the work. Published SX1280 ranging studies have
-compared bandwidths while standing still, or walked at a single bandwidth — the matched
-comparison under motion is the gap this fills. Ground truth for the moving runs comes
-from a stopwatch lap log taken as the carried device reached each cone, so dwell
-windows are operator-attributed rather than inferred from the data.
+**What "semi-mobile" means here, precisely.** The carried endpoint is walked between
+cones, but the analysed readings come from the ~70 s pause at each cone, not from the
+walk. This is therefore a result about *semi-mobile stop-and-go operation*, not about
+ranging at walking speed. Readings taken while actually in motion are future work, and no
+claim is made about them.
 
-### Precision holds across the range
+Dwell windows come from the operator arrival log rather than being inferred from the data.
+Where that log disagrees with the QC tool's nearest-marker heuristic — two of ten markers
+at 406.25 kHz — the lap-window recomputation supersedes the tool, and the tool's own
+report is left as generated so the disagreement stays visible.
+
+### 3. Precision holds out to 300 m
 
 ![Precision by bandwidth](data/analysis/figures/bandwidth_precision.png)
 
-1625 kHz stays between 1 and 3 m of spread from 30 m all the way out to 300 m.
-406.25 kHz runs 3–8.5 m and degrades with distance.
+1625 kHz stays between **0.9 m and 3.3 m** of interquartile spread across the whole
+30–300 m span. 406.25 kHz runs **2.7 m to 8.5 m**, worst across the 180–270 m band.
 
-### The wider bandwidth is nearly free
+### 4. The wider bandwidth is nearly free
 
-Ranging cadence is set by the blocking radio call, not by software pacing:
+Ranging cadence is set by the blocking RadioLib `range()` call, not by software pacing:
 
-| Bandwidth | Cycle time | Rate |
-|---|---|---|
-| 1625 kHz | **655 ms** | 1.53 Hz |
-| 406.25 kHz | 686 ms | 1.46 Hz |
+| Bandwidth | Cycle time | Rate | Basis |
+|---|---|---|---|
+| 1625 kHz | **655 ms** | 1.53 Hz | median of 2,649 inter-row deltas |
+| 406.25 kHz | 686 ms | 1.46 Hz | median of 3,084 inter-row deltas |
 
-Cutting bandwidth by 4× buys only **4.7 %** more time per cycle, because fixed overhead
-— not airtime — dominates the exchange. So the narrow setting costs 7× accuracy and
-returns almost nothing.
+Cutting bandwidth by 4× buys only **4.7 %** more time per cycle, because fixed overhead —
+not airtime — dominates the exchange. A cycle that receives *no* reply is a different
+story: RadioLib runs out a fixed 10 s guard (≈ 10.6 s measured), so cadence collapses
+wherever timeouts are frequent. Neither campaign outing recorded one.
 
-**Practical conclusion: use 1625 kHz.** Reach is not the trade-off either — a separate
-pilot outing ranged out to a **365 m** median and was still working when the ground ran
-out.
+### Practical conclusion
 
-### What these numbers do not say
+**Use 1625 kHz.** On this hardware the narrow setting costs roughly 7× in accuracy and 3×
+in precision, and returns under 5 % in duty cycle. Reach is not the trade-off either: a
+separate pilot outing at 1625 kHz was still ranging at a **365 m** median when the ground
+ran out — though that outing was never surveyed, so no accuracy figure can be read from it.
 
-A short, honest list. The detail is in [`data/README.md`](data/README.md) and the
+---
+
+## Where this sits in the literature
+
+| Prior work | Hardware | Bandwidth comparison | Mobility |
+|---|---|---|---|
+| Wolf et al., WPNC 2019 | Unreleased SX1280 dev-kit + Raspberry Pi | 406.25 vs 1625 kHz, dedicated | static |
+| Andersen et al., WF-IoT 2020 | SX1280 dev-kit | 400 / 800 / 1600 kHz sweep to 100 m | static |
+| Müller et al., ICL-GNSS 2021 | SX1280 | 406 kHz only | one node walking |
+| Gottschalk et al., *Internet of Things* 2026 | SX1280, anchor-based 2D | 800 vs 1600 kHz; 400 kHz tested and excluded | anchor + pedestrian |
+| Albinsaid et al., arXiv 2025 | custom hardware | — | localization framework |
+| Salimzhanova et al., CSCN 2024 | open SX1280 testbed | — | *communication*, not ranging |
+
+Every bandwidth comparison above is static. Every semi-mobile result above is
+single-bandwidth. Gottschalk et al. explicitly defer systematic low-bandwidth
+investigation to future work.
+
+To the best of my knowledge, this repository provides **the first matched 406.25-vs-1625
+kHz comparison under semi-mobile stop-and-go, peer-to-peer conditions with one endpoint
+human-carried**, on commodity hardware with the raw data published — alongside an open,
+reproducible platform for that class of measurement, distinct from unreleased dev-kit
+benchmarking rigs, custom-hardware localization frameworks, and open *communication*
+testbeds.
+
+The static tier is **not new**. It is a replication of Wolf et al. on off-the-shelf parts,
+and is reported as replication. No novel per-exchange radio effect is claimed.
+
+---
+
+## What these numbers do not say
+
+A short, honest list. The full version is in [`data/README.md`](data/README.md) and the
 per-session logs.
 
-- **No error bound on the ground truth.** Cones were surveyed with a class III
-  fibreglass tape, whose instrument tolerance is ±1.3 cm at 30 m and ±12 cm at 300 m.
-  But tape sag, tension and leapfrog accumulation across ten segments were never
-  measured, so **no total tolerance is stated** and none has been invented. Treat the
-  accuracy figures as having no error bars yet.
+- **There is no error bound on the ground truth.** Cones were surveyed with a class III
+  fibreglass tape, whose instrument tolerance is ±1.3 cm at 30 m and ±12 cm at 300 m. But
+  tape sag, tension and leapfrog accumulation across ten segments were never measured, so
+  **no total tolerance is stated and none has been invented.** Treat every accuracy figure
+  here as having no error bars yet.
 - **One outing carries the comparison.** The matched 406.25-vs-1625 kHz result rests on
   22 August alone. The 15 August outing ran one bandwidth and is explicitly *not*
   contribution-grade — attempt counts below specification, no arrival log.
-- **The 240 m cone misbehaves, repeatably.** It deviates on both outings and far more at
+- **Mount height and carry position were not recorded on 22 August.** Antenna height
+  differs silently between a tripod-mounted and a hand-carried endpoint, and this outing
+  cannot say by how much. It is logged as an open item, not quietly reconstructed.
+- **The 240 m cone misbehaves, repeatably.** It deviates on both outings, and far more at
   the lower bandwidth (+29.9 m at 406.25 kHz against +3.2 m at 1625 kHz), beside a
-  recorded structure. That looks like multipath at a fixed reflector, but two outings at
-  one cone is an observation, not a result. It is flagged for targeted re-measurement,
-  not interpreted.
+  recorded structure. That is the profile of multipath at a fixed reflector — but two
+  outings at one cone is an observation, not a result. Flagged for targeted
+  re-measurement, not interpreted.
 - **The pilot outing has no ground truth at all.** Its 365 m reach is a range
-  demonstration; distances were paced, not surveyed. No accuracy figure is derivable
+  demonstration; positions were paced, not surveyed. No accuracy figure is derivable
   from it.
+- **Nothing here speaks to continuous motion.** See result 2 above.
 
-### Reproducing all of it
+---
+
+## Reproducing every figure
 
 Raw CSVs are opened read-only and never modified — no ground truth was ever written back
-into them. Every report and figure regenerates from the published data:
+into them, which is why per-file truth lives in `session_plan.json` instead. Every report
+and figure regenerates from the published data:
 
 ```bash
 python tools/qc_session.py --data-dir data/ranging_experiments/2026-08-22_GMATownship_session02/raw/20260822_174415-Initiator --out qc_out --session-plan data/analysis/2026-08-22_GMATownship_174415_qc/session_plan.json --expect-bw 1625.0
@@ -120,12 +209,12 @@ python tools/qc_session.py --data-dir data/ranging_experiments/2026-08-22_GMATow
 python tools/make_readme_figures.py
 ```
 
-`data/README.md` documents the sites, the weather, every session's provenance and the
-deviations recorded in the field — including the runs that went wrong, and why.
+For the 406.25 kHz run add `--expect-bw 406.25 --cadence-ms 686.0`. Regenerating
+reproduces the committed reports exactly; only the generation timestamp differs.
 
 ---
 
-## Build it yourself
+## Build one
 
 ### Hardware
 
@@ -141,8 +230,8 @@ drives the exchange; the other answers.
 
 ### Toolchain
 
-Arduino IDE 2.x with ESP32 board support, plus **RadioLib** (Jan Gromeš) and
-**FastLED** (Daniel Garcia) from the Library Manager.
+Arduino IDE 2.x with ESP32 board support, plus **RadioLib** (Jan Gromeš) and **FastLED**
+(Daniel Garcia) from the Library Manager.
 
 ### Flash
 
@@ -172,10 +261,10 @@ logged file self-describes the settings that produced it.
 #define RADIO_ADDRESS      0x12345678
 ```
 
-Two notes that cost time to discover. Semtech's documentation labels the 1625 kHz
-setting "1600 kHz", but the hardware register is 52 MHz / 32 = 1625 kHz — and RadioLib
-rejects `1600.0` and `400.0` outright. The address must match on both boards or they
-will never pair.
+Two notes that cost time to discover. Semtech's documentation labels the 1625 kHz setting
+"1600 kHz", but the hardware register is 52 MHz / 32 = 1625 kHz — and RadioLib rejects
+`1600.0` and `400.0` outright. The address must match on both boards or they will never
+pair.
 
 ### Collecting data
 
@@ -185,11 +274,11 @@ Logs are written to on-board flash as CSV and pulled off over serial afterwards:
 python tools/offload/offload.py --port COM8 --session-id 20260822_site
 ```
 
-The script prompts for session metadata, converts local timestamps to UTC, verifies
-every file against a byte-count manifest, and only then offers to wipe the flash. Wipe
-it between outings — leaving it unwiped is how one of our own offloads ended up mixing
-three firmware versions' worth of stale recordings into what looked like a single
-session.
+The script prompts for session metadata, converts local timestamps to UTC, validates every
+file against the DR-1/DR-2 schema, verifies it against a byte-count manifest, and only
+then offers to wipe the flash — a file that fails validation blocks the wipe. Wipe between
+outings: leaving it unwiped is how one of our own offloads ended up mixing three firmware
+versions' worth of stale recordings into what looked like a single session.
 
 ---
 
@@ -197,26 +286,36 @@ session.
 
 ```
 firmware/   Arduino sketches by phase — 01_blink, 02_radio_comms, 03_ranging
-tools/      offload.py (flash → CSV), qc_session.py (QC + figures), make_readme_figures.py
-data/       raw CSVs, session logs, field notes, weather, and generated analysis
-docs/       FSD.md — functional specification, requirements, interfaces
+tools/      offload.py + validate_csv.py   flash -> verified CSV
+            qc_session.py                  per-session QC reports and figures
+            make_readme_figures.py         the cross-bandwidth figures above
+data/
+  ranging_experiments/   raw CSVs, manifests, session logs, field notes, weather
+  analysis/              generated QC reports, per-marker tables, figures
+docs/FSD.md              functional specification — requirements, interfaces, schemas
 ```
 
 ---
 
 ## Status
 
-Working today: two-board ranging at both bandwidths, on-device CSV logging, the offload
-and QC pipeline, and three completed field outings across two sites.
+**Working today:** two-board ranging at both bandwidths, on-device CSV logging, the
+offload / validation / QC pipeline, and three completed field outings across two sites.
 
-Next: closing the ground-truth error bound, re-measuring the 240 m anomaly at both
-bandwidths, and a second matched outing so the bandwidth comparison rests on more than
-one day. A Part 1 preprint covering the platform and this characterisation is in
-preparation; the full experimental protocol (`Methodology.md`) is published alongside it
+**Next:** closing the ground-truth error bound with a sag and tension estimate;
+re-measuring the 240 m anomaly at both bandwidths with site photographs; recording mount
+and carry geometry; and a second matched outing so the bandwidth comparison rests on more
+than one day.
+
+**Paper:** a Part 1 preprint covering the platform and this characterisation is in
+preparation, targeted at arXiv for late 2026. The full experimental protocol
+(`Methodology.md`) — survey procedure, sample sizes, session structure, environmental
+logging, and the discard criteria the QC tool enforces — will be published alongside it,
 and is available on request before then.
 
-Out of scope for now: battery operation, crash detection, indoor multipath
-characterisation, and ranging between more than two devices.
+**Out of scope for now:** battery operation, ranging while both endpoints are in
+continuous motion, indoor multipath characterisation, crash detection, and ranging between
+more than two devices.
 
 ---
 
@@ -226,8 +325,19 @@ characterisation, and ranging between more than two devices.
 |---|---|
 | [`docs/FSD.md`](docs/FSD.md) | Functional specification — requirements, interfaces, data schemas, acceptance criteria |
 | [`data/README.md`](data/README.md) | Datasets — sites, conditions, per-session provenance, limitations, reproduction |
+| [`data/analysis/2026-08-22_GMATownship_day2_qc_tables.md`](data/analysis/2026-08-22_GMATownship_day2_qc_tables.md) | Per-marker numbers behind every figure in this README |
 | [`tools/qc_session.py`](tools/qc_session.py) | Session QC tool — generates every report and figure under `data/analysis/` |
+
+---
+
+## Author
+
+Built and measured by **Ishaan Raonka** — [ishan.raonka.com](https://ishan.raonka.com/).
+
+Corrections, replication attempts, and requests for `Methodology.md` are welcome: open an
+issue on this repository.
 
 ## License
 
-TBD.
+Not yet set. The firmware, tools and datasets here are published for inspection and
+replication; a formal licence will be attached before the preprint goes live.
