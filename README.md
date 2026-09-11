@@ -332,7 +332,7 @@ more than two devices.
 
 ## Author
 
-Built and measured by **Ishaan Raonka** — [ishan.raonka.com](https://ishan.raonka.com/).
+Built and measured by **Ishan Raonka** — [ishan.raonka.com](https://ishan.raonka.com/).
 
 Corrections, replication attempts, and requests for `Methodology.md` are welcome: open an
 issue on this repository.
