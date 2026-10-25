@@ -7,8 +7,16 @@ stop-and-go rows on operator lap-log windows and supersede the QC tool's
 heuristic dwell segmentation, so they -- not the per-run QC reports --
 are the source for anything comparing 406.25 kHz against 1625 kHz.
 
-Input:  data/analysis/2026-08-22_GMATownship_day2_qc_tables.md (TABLE 2, TABLE 3)
-Output: data/analysis/figures/*.png
+Default input is the post-discard tables (Methodology §7.2 first-5-s
+discard, written by tools/per_marker_tables.py). The pre-discard
+figures (bandwidth_accuracy.png etc.) were built from
+2026-08-22_GMATownship_day2_qc_tables.md and are kept; the default
+--suffix writes the post-discard set alongside them rather than over
+them. Reproduce the old set with:
+    --tables data/analysis/2026-08-22_GMATownship_day2_qc_tables.md --suffix ""
+
+Input:  data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md (TABLE 2, TABLE 3)
+Output: data/analysis/figures/*<suffix>.png
 
 Reads only; writes nothing outside the output directory.
 
@@ -27,7 +35,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-TABLES = Path("data/analysis/2026-08-22_GMATownship_day2_qc_tables.md")
+TABLES = Path("data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md")
+SUFFIX = "_discard5s"
 
 # 406.25 kHz vs 1625 kHz, held consistent across every figure.
 C_406 = "#d1495b"
@@ -149,6 +158,8 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tables", type=Path, default=TABLES)
     ap.add_argument("--out", type=Path, default=Path("data/analysis/figures"))
+    ap.add_argument("--suffix", default=SUFFIX,
+                    help="appended to each figure filename")
     args = ap.parse_args()
 
     if not args.tables.is_file():
@@ -160,10 +171,10 @@ def main() -> int:
         sys.exit("error: static and stop-and-go tables cover different markers")
 
     args.out.mkdir(parents=True, exist_ok=True)
-    for name, fn in (("bandwidth_accuracy.png", fig_accuracy),
-                     ("bandwidth_precision.png", fig_precision),
-                     ("motion_effect.png", fig_motion)):
-        path = args.out / name
+    for name, fn in (("bandwidth_accuracy", fig_accuracy),
+                     ("bandwidth_precision", fig_precision),
+                     ("motion_effect", fig_motion)):
+        path = args.out / f"{name}{args.suffix}.png"
         fn(static, sng, path)
         print(f"wrote {path}  ({len(static)} markers)")
     return 0
