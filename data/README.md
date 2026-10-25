@@ -5,7 +5,7 @@ peer devices, with no fixed anchors, no GPS and no infrastructure of any kind.
 
 This directory is part of contribution **C1** of the Part 1 preprint: an open,
 commodity-hardware platform for SX1280 peer-to-peer ToF ranging research, published
-with its raw datasets and the analysis script that produced every reported figure.
+with its raw datasets and the analysis scripts that produced every reported figure.
 
 ---
 
@@ -70,23 +70,26 @@ Identical on both devices, unchanged during every session below.
 | Coding rate | 4/7 |
 | Output power | 12 dBm (H594 hardware maximum ≈ 12.5 dBm) |
 | Ranging address | `0x12345678` |
+| Antenna | the 2.4 GHz SMA stub antenna supplied with the board |
+| Readout | onboard SSD1306 OLED (collection build); no LED ring was fitted for any data here |
+| Firmware | `firmware/03_ranging/`, version 0.9-field-hardening (tag `v0.9-field-hardening`, commit `562f991`), RadioLib 7.6.0; `RADIO_BW_KHZ` edited and reflashed for each bandwidth sweep |
+| Calibration | RadioLib's default per-bandwidth calibration constants; no per-device calibration |
 | WiFi / Bluetooth | disabled at boot, self-reported in the boot banner |
 | Initiator board ID | `0x541BBDD4DB1C` |
 | Responder board ID | `0x5CD85EDB5110` |
 
-**Measured ranging cadence** — set by the blocking RadioLib `range()` call, not by
-software pacing:
+**Measured ranging cadence** — the duration of the whole firmware loop (the blocking
+RadioLib `range()` call, the log write and the OLED refresh), with no software pacing:
 
 | Bandwidth | Cycle time | Rate | Basis |
 |---|---|---|---|
-| 1625 kHz | **≈ 655 ms** | ≈ 1.53 Hz | pooled median, 2649 inter-row deltas |
-| 406.25 kHz | **≈ 686 ms** | ≈ 1.46 Hz | pooled median, 3084 inter-row deltas |
+| 1625 kHz | **≈ 655 ms** | ≈ 1.53 Hz | pooled median, 2649 inter-row intervals |
+| 406.25 kHz | **≈ 686 ms** | ≈ 1.46 Hz | pooled median, 3084 inter-row intervals |
 
-A 4× bandwidth reduction costs only ≈ 31 ms per cycle (+4.7 %), which is consistent
-with fixed overhead dominating airtime. A cycle that receives *no* response is far
-longer — RadioLib runs out a fixed 10 s guard (≈ 10.6 s measured) — so cadence
-degrades sharply wherever timeouts are frequent. Both GMA township outings recorded
-**zero timeouts**.
+On 22 August, the 4× narrower bandwidth lengthened each cycle by only ≈ 31 ms (+4.7 %):
+most of the cycle is bandwidth-independent loop time, which was not broken down
+further. Both GMA township outings recorded **zero timeouts**, so what a cycle with no
+response costs was not measured.
 
 ---
 
@@ -130,17 +133,26 @@ Both bandwidths, both tiers, ten cones at 30 m spacing from 30–300 m. Sweep or
 | 1625 kHz static | `raw/20260822_174415-Initiator/` | 10 of 11 | PASS |
 | 1625 kHz stop-and-go | same | 1 of 11 | PASS |
 
-Both stop-and-go runs carry **operator arrival logs** (`stopwatch_laps_data_*.csv`) —
-phone stopwatch laps taken as the carried device reached each cone, giving directly
+In the stop-and-go runs (the hand-held tier) the Responder rides on a pole the operator
+holds upright on each cone mark, stationary for a ~70 s dwell, and is walked between
+cones. Both runs carry **operator arrival logs** (`stopwatch_laps_data_*.csv`): phone
+stopwatch laps pressed at the end of each dwell and of each walk, giving directly
 attributed ground truth rather than an inferred plateau. This is the strongest ground
 truth in the dataset. Note that `qc_session.py`'s nearest-marker heuristic disagrees
-with the lap log on two of ten markers at 406.25 kHz; where they disagree,
-`analysis/2026-08-22_GMATownship_day2_qc_tables.md` recomputes on the lap windows and
-**supersedes the tool's stop-and-go numbers**.
+with the lap log on two of ten markers at 406.25 kHz; where they disagree, the per-marker
+tables recompute on the lap windows and **supersede the tool's stop-and-go numbers**.
+
+The current per-marker tables are
+`analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`, which discard the first 5 s
+at each marker (Methodology §7.2). `analysis/2026-08-22_GMATownship_day2_qc_tables.md` is
+the earlier, pre-discard version, kept as a record; `analysis/f4_discard_delta.md` lists
+what the discard changed. The session log's reclassification addendum (10 October 2026)
+records this session as contribution-grade for both bandwidths and both tiers.
 
 **The 406.25 kHz static HOLD.** Two files exceed the tool's 15 m rolling-median drift
 limit: `_8` (180 m, drift 19.7 m) and `_9` (210 m, drift 15.9 m). Both were **kept**.
-Each carries the full N=100 with zero timeouts and zero errors, the 180 m excursion
+Each carries the full N=100 (before the 5 s discard) with zero timeouts and zero errors,
+the 180 m excursion
 has a recorded physical cause in the field notes ("180m — few people walked by"), and
 both sit inside a strictly ascending median sequence. The tool's HOLD verdict is left
 standing and unmodified; the operator disposition — keep, with the anomaly documented
@@ -149,7 +161,7 @@ standing and unmodified; the operator disposition — keep, with the anomaly doc
 ### 2026-08-15 — GMA township, session 01
 
 First campaign outing. **1625 kHz only** — the 406.25 kHz sweep was not run. Same ten
-cones. Static sweep and semi-mobile stop-and-go, both at 1625 kHz.
+cones. Static sweep and a hand-held stop-and-go run, both at 1625 kHz.
 
 - `raw/20260815_184714-Initiator/` — 13 files, the canonical sweep. QC **PASS**.
 - `raw/superseded/20260815_173207-Initiator/` — 2 files at the 30 m and 60 m markers.
@@ -162,9 +174,15 @@ cones. Static sweep and semi-mobile stop-and-go, both at 1625 kHz.
   session log, item T6, for the full diagnosis.
 
 *Known limitations* — recorded in the session log, not corrected after the fact:
-attempt counts fall short of the N=100 specification on most markers; there is no
-operator arrival log for the stop-and-go run; per-file operator metadata was not
-written; humidity was not captured. **This session is not contribution-grade.**
+attempt counts fall below the 80-attempt analysis floor after the 5 s discard at most
+markers; there is no operator arrival log for the stop-and-go run; the static run missed
+the 300 m cone and recorded an off-set 330 m cone instead; per-file operator metadata
+was not written; humidity was not captured. **This session is not contribution-grade.**
+
+Its static per-marker signed errors at 1625 kHz differ from those of 22 August by
+−9.0 m to +5.9 m (`analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`, TABLE 5).
+It is held back from the reported results pending an operator check of the 15 August
+set-up, so day-to-day repeatability is not established.
 
 ### 2026-07-13 — Parade Ground pilot *(not campaign data)*
 
@@ -216,7 +234,7 @@ directory's README before using it for anything.
 
 ## Two things to read before using these numbers
 
-**1. Ground-truth tolerance has a floor but no total.** Cone positions were surveyed
+**1. Ground truth is bounded at about ±0.5 m at 300 m.** Cone positions were surveyed
 with a taut fibreglass tape by two-person leapfrog, read from the 0 graduation against
 a pre-written cumulative tally sheet, with every cone numbered at placement and a full
 recount after layout.
@@ -226,36 +244,44 @@ The tape is **accuracy class III**, whose maximum permissible error is
 
 | Distance | Instrument MPE |
 |---|---|
-| 30 m | ±1.3 cm |
-| 300 m | ±12.1 cm |
+| 30 m (one segment) | ±12.6 mm |
+| 300 m (ten leapfrogged 30 m segments) | ±126 mm |
 
-**That is the instrument floor, not the error budget.** Tape sag, tension variation,
-leapfrog accumulation across ten segments and cone-placement precision are all
-unquantified — none were recorded in the field. No total ground-truth bound is stated,
-and none has been invented. Every signed-error figure in this dataset carries that
-open item with it, and closing it requires a sag/tension estimate on a future outing.
+The line was laid by reusing the same 30 m of tape ten times, so the graduation error
+repeats in every segment and accumulates linearly; ±126 mm supersedes the single-length
+±12.1 cm figure first written in the session logs.
+
+That is the instrument term only. The total bound adds lateral zigzag of the line,
+graduation-to-mark transfer and puck centring, all as operator upper-bound estimates
+(sag excluded: the tape lay flat on concrete; stretch treated as within the class
+tolerance). At 300 m the bound is **−448 / +281 mm** with both endpoints on tripods and
+**−411 / +245 mm** with one hand-held; the hand-held figure omits the placement of the
+hand-held end, which was not estimated. The 22 August cones were placed on road marks
+from the 15 August survey, so cone-position error is common to both sessions and both
+bandwidths. Full derivation: [`docs/ground_truth_tolerance.md`](../docs/ground_truth_tolerance.md).
 
 **2. The 240 m marker deviates on both outings, and bandwidth-dependently.**
 
-| Outing | Bandwidth | Observation |
+| Outing | Bandwidth | Observation (after the 5 s discard) |
 |---|---|---|
-| 15 Aug | 1625 kHz | IQR 5.5 m static / 4.6 m stop-and-go, vs 1.0–2.5 m at neighbouring markers |
-| 22 Aug | 406.25 kHz | signed error **+29.9 m** static, +15.6 m stop-and-go |
-| 22 Aug | 1625 kHz | signed error **+3.2 m** static, +0.7 m stop-and-go |
+| 15 Aug | 1625 kHz | IQR 5.8 m static / 4.5 m stop-and-go, vs 1.0–2.5 m at the other on-set markers |
+| 22 Aug | 406.25 kHz | signed error **+29.7 m** static, +15.3 m stop-and-go |
+| 22 Aug | 1625 kHz | signed error **+3.2 m** static, +0.6 m stop-and-go; IQR 2.8 / 3.3 m, the widest of the ten markers in each tier |
 
-The same cone, the same recorded structure, across two outings, with an effect roughly
-an order of magnitude larger at the lower bandwidth. That is the profile of multipath
-at a fixed reflector. It is **recorded as an observation, not claimed as a result** —
-two outings at one cone is not evidence. A targeted re-measurement at both bandwidths,
-with site photographs, is the first item of the next outing.
+A structure stands near the cone. Other markers stand out by other criteria (the widest
+406.25 kHz IQRs on 22 August were at 180 m and 210 m). The deviation is **recorded as
+an observation, not claimed as a result, and not interpreted**. A targeted
+re-measurement at both bandwidths, with site photographs, is future work.
 
 ---
 
 ## Reproducing the analysis
 
-Every report and figure under `analysis/` is generated by `tools/qc_session.py`. Raw
-CSVs are opened **read-only and are never modified** — no ground truth was written
-back into them, which is why per-file truth lives in `session_plan.json` instead.
+The per-session QC reports under `analysis/*_qc/` are generated by
+`tools/qc_session.py`; the post-discard tables and analyses are generated by the scripts
+listed in the top-level README ("Reproducing every figure"). Raw CSVs are opened
+**read-only and are never modified** — no ground truth was written back into them,
+which is why per-file truth lives in `session_plan.json` instead.
 
 ```bash
 python tools/qc_session.py \
