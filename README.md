@@ -77,6 +77,75 @@ use case, not a research result.
 
 ---
 
+## Paper and citation
+
+A Part 1 preprint covering the platform and this characterisation is in preparation for
+arXiv: *Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer SX1280 LoRa Ranging
+and a Field Comparison of Its Bandwidth Extremes*. Its arXiv identifier will be added
+here when it is posted. The full experimental protocol (`Methodology.md`) will be
+published alongside it, and is available on request before then.
+
+To cite this repository (firmware, tools and data, release `v1.0-preprint`):
+
+```bibtex
+@misc{raonka2026packpucks,
+  author = {Ishan Raonka},
+  title  = {Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer {SX1280}
+            {LoRa} Ranging and a Field Comparison of Its Bandwidth Extremes},
+  year   = {2026},
+  note   = {Firmware, tools and data, release v1.0-preprint},
+  url    = {https://github.com/raonka/Pack-Puck}
+}
+```
+
+The Zenodo DOI of the release will be added here.
+
+---
+
+## Quick start
+
+**Hardware.** Two LILYGO T3-S3 V1.2 boards (SX1280, the variant without a power
+amplifier), each with its SMA stub antenna screwed on before power-up, in a 3D-printed
+case held in a phone clamp on a 1.5 m camera tripod, powered from its own USB-C power
+bank. Full parts list: [Build one](#build-one).
+
+**Build and flash.** Arduino IDE 2.3.8, arduino-esp32 3.3.5, RadioLib 7.6.0, U8g2 2.35.30
+([Toolchain](#toolchain)). Tools menu: Board **LilyGo T3-S3**, Board Revision
+**Radio-SX1280**, USB CDC On Boot **Enable**, Partition Scheme **Default 4MB with spiffs
+(1.2MB APP / 1.5MB SPIFFS)**, PSRAM **QSPI PSRAM**, Upload Mode **UART0/Hardware CDC**.
+Flash `firmware/03_ranging/03_initiator/` to one board and `firmware/03_ranging/03_responder/`
+to the other (the role is the sketch). Set `RADIO_BW_KHZ` to `1625.0f` or `406.25f` in
+both sketches and reflash both for each bandwidth.
+
+**Running a session.** The Responder stays at the reference position; the Initiator moves
+to each marker, and each power-on starts a new log file. Its OLED shows distance, RSSI,
+state and failure count (title `!! SPIFFS FAIL !!` if logging has stopped). Hold each
+marker for about 70 s: the analysis discards the first 5 s as settling.
+
+**Offload.** With pyserial installed, reset or replug the puck and run straight away:
+
+```bash
+python tools/offload/offload.py --port COM7 --session-id 20260822_site
+```
+
+This one command enters offload mode in the boot window, lists, downloads and validates
+every log, writes `manifest.txt`, and offers to erase the flash only if every file is
+intact and you type `YES`. Files land in `./offload/<session-id>-<Role>/` (`--out-dir`
+changes the parent; `--no-metadata` skips the operator prompts; `-v` echoes the traffic).
+
+**Analysis.** From the repository root, with Python and matplotlib, in this order:
+
+```bash
+for s in per_marker_tables aggregates c3_filters c4_failure_modes dwell_table uncertainty \
+         rssi_disturbance c2_walking review_followup make_readme_figures make_latex_tables
+do python tools/$s.py; done
+```
+
+This regenerates every table and figure behind the preprint
+([Reproducing every figure](#reproducing-every-figure)).
+
+---
+
 ## What was measured
 
 | | |
@@ -346,8 +415,10 @@ build.
 2. Board **LilyGo T3-S3**, Board Revision **Radio-SX1280**.
 3. Enable **USB CDC On Boot**; PSRAM **QSPI PSRAM**; Partition Scheme
    **Default 4MB with spiffs**.
-4. Set the role — `#define ROLE_INITIATOR` on one board, `#define ROLE_RESPONDER` on the
-   other. There is no runtime switching.
+4. Choose the role by the sketch: for the campaign firmware, flash
+   `firmware/03_ranging/03_initiator/` to one board and `firmware/03_ranging/03_responder/`
+   to the other (earlier phases likewise ship one sketch per role). There is no runtime
+   switching.
 5. Flash both, then open Serial Monitor at 115200 baud.
 
 The boot banner reports firmware version, board ID and the full radio configuration, and
@@ -425,11 +496,7 @@ completed field outings across two sites.
 comparison rests on more than one day; re-measuring the 240 m marker at both bandwidths with site photographs; and a per-device
 delay calibration at each bandwidth.
 
-**Paper:** a Part 1 preprint covering the platform and this characterisation is in
-preparation, targeted at arXiv for late 2026. The full experimental protocol
-(`Methodology.md`) — survey procedure, sample sizes, session structure, environmental
-logging, and the discard criteria the QC tool enforces — will be published alongside it,
-and is available on request before then.
+**Paper:** see [Paper and citation](#paper-and-citation).
 
 **Out of scope for now:** battery operation, ranging while both endpoints are in
 continuous motion, indoor multipath characterisation, crash detection, and ranging between
