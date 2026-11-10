@@ -12,14 +12,11 @@ The release `v1.0-preprint` is archived on Zenodo: DOI [10.5281/zenodo.24112951]
 
 ## Availability of the methodology document
 
-The full experimental protocol (`Methodology.md`) — ground-truth survey procedure,
-sample sizes, session structure, environmental logging, and the discard criteria the
-QC tool enforces — **will be published when the Part 1 preprint goes live.**
-
-Until then it is available on request. Reports and logs in this directory cite it by
-section number (e.g. `Methodology 7.2`); those citations resolve against the document
-that ships with the preprint. **If you need a copy before then, get in touch and one
-will be sent** — open an issue on this repository and ask.
+The full experimental protocol (`Methodology.md`), covering the ground-truth survey
+procedure, sample sizes, session structure, environmental logging and the discard
+criteria the QC tool enforces, is **available on request**: open an issue on this
+repository and ask. Reports and logs in this directory cite it by section number
+(e.g. `Methodology 7.2`).
 
 ---
 
@@ -153,8 +150,8 @@ The current per-marker tables are
 `analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`, which discard the first 5 s
 at each marker (Methodology §7.2). `analysis/2026-08-22_GMATownship_day2_qc_tables.md` is
 the earlier, pre-discard version, kept as a record; `analysis/f4_discard_delta.md` lists
-what the discard changed. The session log's reclassification addendum (10 October 2026)
-records this session as contribution-grade for both bandwidths and both tiers.
+what the discard changed. The session log's CLASSIFICATION field records this session
+as the paper's data session for both bandwidths and both tiers (decision October 2026).
 
 **The 406.25 kHz static HOLD.** Two files exceed the tool's 15 m rolling-median drift
 limit: `_8` (180 m, drift 19.7 m) and `_9` (210 m, drift 15.9 m). Both were **kept**.

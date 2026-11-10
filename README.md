@@ -29,8 +29,8 @@ hardware can be checked rather than taken on trust.
 > **2.5 to 3.1 times wider**. The 406.25 kHz ranging cycle was 4.7 % longer (686 ms
 > against 655 ms).
 >
-> **5,760 ranging exchanges on 22 August, retaken files included: zero timeouts, zero
-> errors**, so readings offset by about 10 m arrived with a success status.
+> **5,760 logged ranging exchanges on 22 August, retaken files included: zero
+> timeouts, zero errors**, so readings offset by about 10 m arrived with a success status.
 >
 > Repeatability across days is not established: the comparison rests on one session
 > (see [What these numbers do not say](#what-these-numbers-do-not-say)).
@@ -79,11 +79,10 @@ use case, not a research result.
 
 ## Paper and citation
 
-A Part 1 preprint covering the platform and this characterisation is in preparation for
-arXiv: *Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer SX1280 LoRa Ranging
-and a Field Comparison of Its Bandwidth Extremes*. Its arXiv identifier will be added
-here when it is posted. The full experimental protocol (`Methodology.md`) will be
-published alongside it, and is available on request before then.
+The Part 1 preprint, *Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer
+SX1280 LoRa Ranging and a Field Comparison of Its Bandwidth Extremes*, covers the
+platform and this characterisation; its arXiv identifier will be added here. The full
+experimental protocol (`Methodology.md`) is available on request.
 
 To cite this repository (firmware, tools and data, release `v1.0-preprint`):
 
