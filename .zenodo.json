@@ -1,0 +1,20 @@
+{
+  "title": "Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer SX1280 LoRa Ranging and a Field Comparison of Its Bandwidth Extremes",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Raonka, Ishan"
+    }
+  ],
+  "description": "Firmware, offload and quality-control tools, raw field datasets and analysis scripts for Pack Pucks, an open platform for peer-to-peer time-of-flight ranging with the Semtech SX1280 2.4 GHz LoRa transceiver on off-the-shelf LILYGO T3-S3 (ESP32-S3) boards. The release contains everything behind the Part 1 preprint: the campaign firmware, the raw CSVs of the 22 August 2026 matched session at 406.25 and 1625 kHz (static and hand-held tiers, ten tape-surveyed markers from 30 to 300 m), the operator plan files and stopwatch lap logs, and the scripts that regenerate every table and figure. Code (firmware/, tools/) is licensed under the MIT License; data and documentation (data/, docs/, README files) under CC BY 4.0.",
+  "license": "MIT",
+  "keywords": [
+    "SX1280",
+    "LoRa",
+    "time-of-flight ranging",
+    "peer-to-peer ranging",
+    "ESP32-S3",
+    "open hardware",
+    "field dataset"
+  ]
+}
