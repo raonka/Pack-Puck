@@ -250,6 +250,10 @@ def main() -> int:
           f"| Bandwidth-independent remainder of the 1625 kHz cycle | "
           f"{c1625 - (c406 - c1625) / 3:.1f} ms "
           f"({(c1625 - (c406 - c1625) / 3) / c1625:.1%}) | — |",
+          f"| Span of a causal 3-reading filter window (current and two "
+          f"previous readings = 2 cycles), 1625 kHz | {2 * c1625:g} ms | — |",
+          f"| Span of a causal 3-reading filter window (current and two "
+          f"previous readings = 2 cycles), 406.25 kHz | {2 * c406:g} ms | — |",
           f"| Ranging exchanges, both campaign outings (all Initiator rows "
           f"in the canonical offload sets, discarded retakes included) | "
           f"{total:,} | 7,860 |", "",

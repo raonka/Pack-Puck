@@ -54,6 +54,8 @@ Definitions: MAE = mean over the ten markers of |per-marker median − marker|. 
 | Cycle-time difference, 406.25 − 1625 | 31 ms | — |
 | Bandwidth-scaled part of the 1625 kHz cycle, if it scales with symbol duration (×4 at 406.25): (686 − 655) / 3 | 10.3 ms | — |
 | Bandwidth-independent remainder of the 1625 kHz cycle | 644.7 ms (98.4%) | — |
+| Span of a causal 3-reading filter window (current and two previous readings = 2 cycles), 1625 kHz | 1310 ms | — |
+| Span of a causal 3-reading filter window (current and two previous readings = 2 cycles), 406.25 kHz | 1372 ms | — |
 | Ranging exchanges, both campaign outings (all Initiator rows in the canonical offload sets, discarded retakes included) | 7,860 | 7,860 |
 
 ## Changed vs the pre-discard / README values (at README display precision; includes the discard and, for MAE / signed bias / MAE ratio, the switch to unrounded per-marker values)

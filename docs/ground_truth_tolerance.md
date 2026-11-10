@@ -83,9 +83,11 @@ The operator instruction gave the holding direction as two unresolved alternativ
 |---|---|---|
 | systematic, either sign | 12.6 k | 12.6 k |
 | systematic, negative only | 16.7 k | 16.7 k (+ 600 if "toward") |
-| systematic, positive only | 0 | 0 (+ 360/D if "sideways") |
+| systematic, positive only | 0 | 0 (+ 180/D if "sideways") |
 | random, linear | 20 k + 200 | 20 k + 100 |
 | random, RSS | √(400 k + 20 000) | √(400 k + 10 000) |
+
+*Corrected 2026-11-10:* the sideways term in the formula table above was written 360/D; the geometry of section 2.7, sqrt(D^2 + 0.6^2) - D, gives 180/D mm (+6 mm at 30 m, +0.6 mm at 300 m, as section 2.7 states). The per-marker values below already used 180/D and are unchanged. In the campaign the carried puck stands on the cone mark with the operator behind it, so the sideways term does not apply to the campaign; the paper's hand-held bound at 300 m is therefore -411 / +244 mm (`data/analysis/review_followup.md` section 3(c)).
 
 **Per marker** (mm, negative side / positive side):
 

@@ -153,6 +153,96 @@ def fig_motion(static, sng, out: Path):
     plt.close(fig)
 
 
+def parse_run(text: str, bw: str, tier: str) -> dict[int, dict]:
+    """One per-run table ("### <bw> kHz <U+2014> <tier>"): marker -> median, Q1, Q3, err.
+    Columns are found by header name, so the static and stop-and-go layouts
+    (the latter has an extra "window s" column) both parse."""
+    heading = f"### {bw} kHz \u2014 {tier}"  # the source heading's dash
+    try:
+        block = text.split(heading, 1)[1].split("\n#", 1)[0]
+    except IndexError:
+        sys.exit(f"error: heading not found: {heading}")
+    lines = [l for l in block.splitlines() if l.startswith("|")]
+    head = [c.strip() for c in lines[0].strip().strip("|").split("|")]
+    i_med, i_q, i_err = (head.index("median m"), head.index("Q1–Q3 m"),
+                         head.index("signed err m"))
+    out = {}
+    for line in lines[2:]:
+        c = [x.strip() for x in line.strip().strip("|").split("|")]
+        q1, q3 = c[i_q].split("–")
+        out[int(c[0])] = {"med": float(c[i_med]), "q1": float(q1),
+                          "q3": float(q3), "err": float(c[i_err])}
+    return out
+
+
+def fig_accuracy_paper(text: str, static, sng, out: Path):
+    """Print variant of fig_accuracy for the paper (Fig. 2): one IEEE column,
+    caption-size fonts, IQR bars, zero line, shared y-axis. The README figure
+    (fig_accuracy) is left unchanged."""
+    runs = {}
+    for tier, rows in (("static", static), ("stop-and-go", sng)):
+        for bw, key in (("406.25", "err_406"), ("1625", "err_1625")):
+            run = parse_run(text, bw, tier)
+            if sorted(run) != [r["marker"] for r in rows]:
+                sys.exit(f"error: {bw} {tier}: per-run markers differ from TABLE 2/3")
+            for r in rows:
+                p = run[r["marker"]]
+                # The plotted point is the TABLE 2/3 signed error; it must equal
+                # the per-run table's, and median - marker, to the printed 0.1 m.
+                if p["err"] != r[key] or round(p["med"] - r["marker"], 1) != p["err"]:
+                    sys.exit(f"error: {bw} {tier} {r['marker']} m: signed error "
+                             "differs between tables")
+                if not p["q1"] <= p["med"] <= p["q3"]:
+                    sys.exit(f"error: {bw} {tier} {r['marker']} m: median outside Q1-Q3")
+            runs[(tier, bw)] = run
+
+    plt.rcParams.update({"font.size": 8})
+    fig, axes = plt.subplots(1, 2, figsize=(3.5, 2.55), sharey=True)
+    handles = []
+    for ax, tier, title in ((axes[0], "static", "Static"),
+                            (axes[1], "stop-and-go", "Hand-held")):
+        ax.axhline(0, color="#444", linewidth=0.6, zorder=1)
+        for bw, colour, fmt, dx in (("406.25", C_406, "o", -3), ("1625", C_1625, "s", 3)):
+            run = runs[(tier, bw)]
+            xs = sorted(run)
+            ys = [run[x]["err"] for x in xs]
+            lo = [run[x]["med"] - run[x]["q1"] for x in xs]
+            hi = [run[x]["q3"] - run[x]["med"] for x in xs]
+            h = ax.errorbar([x + dx for x in xs], ys, yerr=[lo, hi], fmt=fmt + "-",
+                            color=colour, markersize=2.6, linewidth=0.8,
+                            elinewidth=0.7, capsize=1.2, zorder=3,
+                            label=f"{bw} kHz")
+            if tier == "static":
+                handles.append(h)
+        ax.set_title(title, fontsize=8, pad=3)
+        ax.set_xticks([30, 90, 150, 210, 270])
+        ax.set_xlim(15, 315)
+        ax.tick_params(labelsize=7, length=2.5, pad=2)
+        ax.grid(True, alpha=0.3, linewidth=0.5)
+        ax.set_axisbelow(True)
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+    axes[0].set_ylabel("signed error (m)")
+    # Site note at 240 m, static panel only (the text reports the structure there;
+    # no cause is claimed).
+    p240 = runs[("static", "406.25")][240]
+    y240 = p240["err"]
+    axes[0].annotate("structure nearby", xy=(240 - 3 - 5, y240 + 0.5),
+                     xytext=(222 - 5, y240 + 2.2), ha="right", va="center",
+                     fontsize=6.5, color="#444",
+                     arrowprops=dict(arrowstyle="-", color="#888", linewidth=0.5,
+                                     shrinkA=1, shrinkB=0))
+    axes[1].legend(handles, [h.get_label() for h in handles], loc="upper left",
+                   fontsize=7, frameon=False, handlelength=2.2,
+                   borderaxespad=0.2)
+    fig.tight_layout(rect=(0, 0.05, 1, 1), w_pad=0.6)
+    fig.text(0.53, 0.015, "marker distance (m)", ha="center", va="bottom",
+             fontsize=8)
+    fig.savefig(out, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    plt.rcParams.update(plt.rcParamsDefault)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -177,6 +267,9 @@ def main() -> int:
         path = args.out / f"{name}{args.suffix}.png"
         fn(static, sng, path)
         print(f"wrote {path}  ({len(static)} markers)")
+    path = args.out / f"bandwidth_accuracy{args.suffix}_paper.png"
+    fig_accuracy_paper(text, static, sng, path)
+    print(f"wrote {path}  (paper Fig. 2, {len(static)} markers)")
     return 0
 
 
