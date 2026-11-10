@@ -94,11 +94,12 @@ To cite this repository (firmware, tools and data, release `v1.0-preprint`):
             {LoRa} Ranging and a Field Comparison of Its Bandwidth Extremes},
   year   = {2026},
   note   = {Firmware, tools and data, release v1.0-preprint},
-  url    = {https://github.com/raonka/Pack-Puck}
+  url    = {https://github.com/raonka/Pack-Puck},
+  doi    = {10.5281/zenodo.24112951}
 }
 ```
 
-The Zenodo DOI of the release will be added here.
+Archived on Zenodo (release `v1.0-preprint`): DOI [10.5281/zenodo.24112951](https://doi.org/10.5281/zenodo.24112951).
 
 ---
 

@@ -6,6 +6,7 @@ peer devices, with no fixed anchors, no GPS and no infrastructure of any kind.
 This directory is part of contribution **C1** of the Part 1 preprint: an open,
 commodity-hardware platform for SX1280 peer-to-peer ToF ranging research, published
 with its raw datasets and the analysis scripts that produced every reported figure.
+The release `v1.0-preprint` is archived on Zenodo: DOI [10.5281/zenodo.24112951](https://doi.org/10.5281/zenodo.24112951).
 
 ---
 
