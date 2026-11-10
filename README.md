@@ -19,23 +19,43 @@ hardware can be checked rather than taken on trust.
 > **22 August 2026 · ten tape-surveyed cones at 30 m spacing, 30–300 m · SF8 · both
 > bandwidths run back to back on the same line**
 >
-> In this session, at **1625 kHz** the median range error stayed inside **±5 m at every
-> marker**, both with the endpoints on tripods and with one endpoint hand-held, with a mean
-> absolute error of **1.6 m** and **1.7 m**. At **406.25 kHz** it did not: errors ran
-> **10–12 m long on average**, as a systematic bias rather than scatter. The 406.25 kHz
-> ranging cycle was **4.7 % longer** than the 1625 kHz one (686 ms against 655 ms).
+> Out of the box, **1625 kHz** was more accurate and more precise. Its median range error
+> stayed inside **±5 m at every marker**, both with both endpoints static and with one
+> endpoint hand-held, with a mean absolute error of **1.6 m** and **1.7 m**. At
+> **406.25 kHz** errors ran **10 to 12 m long on average**: most of the error was a
+> positive offset. With that offset estimated in the other tier and removed, the
+> 406.25 kHz mean absolute error was **6.2 m** static and **3.1 m** hand-held, against
+> 1.7 m, a hand-held difference these data do not resolve, while its spread stayed
+> **2.5 to 3.1 times wider**. The 406.25 kHz ranging cycle was 4.7 % longer (686 ms
+> against 655 ms).
 >
-> **7,860 ranging exchanges across the two campaign outings: zero timeouts, zero errors.**
+> **5,760 ranging exchanges on 22 August, retaken files included: zero timeouts, zero
+> errors**, so readings offset by about 10 m arrived with a success status.
 >
-> Repeatability across days is not established: a second, non-contribution-grade
-> 1625 kHz session at the same marks differs from this one by up to 9.0 m at individual
-> markers (see [What these numbers do not say](#what-these-numbers-do-not-say)).
+> Repeatability across days is not established: the comparison rests on one session
+> (see [What these numbers do not say](#what-these-numbers-do-not-say)).
+
+## What this repository contributes
+
+The three contributions of the Part 1 preprint:
+
+1. **Platform.** An open platform for peer-to-peer SX1280 ranging on off-the-shelf
+   boards, released with its firmware, data and analysis scripts.
+2. **Bandwidth choice for a hand-held peer.** A matched 406.25 against 1625 kHz
+   comparison from 30 to 300 m with one endpoint hand-held as well as with both static,
+   at the markers and on the walks between them.
+3. **Practitioner observations.** How a post-hoc median-of-3 filter changes bias and
+   spread, the radio's outcome record, the recorded field disturbances and their
+   retakes, and how Initiator signal strength relates to ranging error (it did not track
+   it within a marker).
 
 | Where to look | |
 |---|---|
 | [`data/README.md`](data/README.md) | Datasets — sites, weather, per-session provenance, every field deviation |
 | [`data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`](data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md) | The per-marker tables behind every figure here (first 5 s of each marker discarded) |
 | [`data/analysis/aggregates.md`](data/analysis/aggregates.md), [`uncertainty.md`](data/analysis/uncertainty.md) | The aggregates below, and their bootstrap and slope intervals |
+| [`data/analysis/review_followup.md`](data/analysis/review_followup.md) | The offset-removed accuracy and the spread ratios, with intervals |
+| [`data/analysis/c2_walking.md`](data/analysis/c2_walking.md) | The walks between markers, against a constant-pace reference |
 | [`docs/ground_truth_tolerance.md`](docs/ground_truth_tolerance.md) | How the ground-truth bound was derived |
 | [`firmware/`](firmware/) | Arduino/C++ sources, both roles, by build phase |
 | [`docs/FSD.md`](docs/FSD.md) | Functional specification — requirements, pin map, CSV schemas |
@@ -66,10 +86,12 @@ use case, not a research result.
 | Radio | SX1280 @ 2400.0 MHz, SF8, CR 4/7, 12 dBm, address `0x12345678` |
 | Calibration | Out of the box: RadioLib 7.6.0's default per-bandwidth calibration constants, no per-device calibration |
 | Independent variable | **Bandwidth: 406.25 kHz vs 1625 kHz.** |
-| Tier 1 — static | Both endpoints on 1.5 m camera tripods, one boot per marker, ascending 30 m → 300 m |
-| Tier 2 — hand-held | Initiator on its tripod; Responder on a pole the operator holds upright at each cone, stationary for a ~70 s dwell, walked between cones in one boot, 300 m → 30 m |
+| Mounts | Each puck in a phone clamp on a 1.5 m camera tripod, antennas vertical, the pucks facing each other; one USB-C power bank per puck |
+| Roles | The Responder stays at the reference position; the Initiator, which shows its latest reading on its display, is the puck moved to each marker |
+| Tier 1, static | The Initiator's tripod stands at each marker; one boot per marker, ascending 30 m to 300 m |
+| Tier 2, hand-held | The operator carries the Initiator's tripod upright, with its power bank in a pocket, and holds it on each cone mark, standing behind it on the side away from the Responder, for a ~70 s dwell; walked between cones in one boot, 300 m to 30 m |
 | Sample size | 82–122 attempts per marker after discarding the first 5 s at each marker |
-| Tier 2 ground truth | Operator arrival log — phone stopwatch lapped at the end of every dwell and every walk |
+| Tier 2 ground truth | The operator's stopwatch lap log: a phone stopwatch lapped at the end of every dwell and every walk |
 
 Both bandwidths ran back to back on the same cone line, the same afternoon, at the same
 spreading factor and the same power, 406.25 kHz first. This is one matched session: the
@@ -82,19 +104,21 @@ reading was taken at 15:07, so drift between the two sweeps cannot be excluded.
 
 All results in this section are from the 22 August session.
 
-### 1. Bandwidth dominated the error
+### 1. Most of the 406.25 kHz error was an offset; its spread stayed wider
 
 ![Ranging accuracy by bandwidth](data/analysis/figures/bandwidth_accuracy_discard5s.png)
 
-| | 406.25 kHz | 1625 kHz | MAE ratio |
+| | 406.25 kHz | 1625 kHz | Ratio 406.25 / 1625 |
 |---|---|---|---|
-| Mean absolute error — static | 11.1 m [7.1, 16.1] | **1.6 m** [0.9, 2.3] | 6.8× [4.8, 9.9] |
-| Mean absolute error — hand-held | 12.1 m [10.0, 14.3] | **1.7 m** [0.9, 2.7] | 7.2× [4.5, 14.1] |
-| Mean signed error — static | **+10.4 m** [+5.6, +15.8] | +0.4 m [−0.9, +1.5] | — |
-| Mean signed error — hand-held | **+12.1 m** [+10.0, +14.3] | −0.2 m [−1.5, +1.3] | — |
-| Worst single marker — static | **+29.7 m** (at 240 m) | +3.2 m (at 240 m) | — |
-| Mean IQR — static | 5.2 m | **1.7 m** | — |
-| Mean IQR — hand-held | 4.4 m | **1.8 m** | — |
+| Mean absolute error, static | 11.1 m [7.1, 16.1] | **1.6 m** [0.9, 2.3] | 6.8× [4.8, 9.9] |
+| Mean absolute error, hand-held | 12.1 m [10.0, 14.3] | **1.7 m** [0.9, 2.7] | 7.2× [4.5, 14.1] |
+| Mean signed error, static | **+10.4 m** [+5.6, +15.8] | +0.4 m [−0.9, +1.5] | |
+| Mean signed error, hand-held | **+12.1 m** [+10.0, +14.3] | −0.2 m [−1.5, +1.3] | |
+| Mean absolute error, offset removed, static | 6.2 m [2.9, 10.2] | 1.7 m [1.1, 2.4] | 3.7× [1.5, 7.6] |
+| Mean absolute error, offset removed, hand-held | 3.1 m [1.8, 6.8] | 1.7 m [0.9, 2.9] | 1.8× [0.7, 5.5] |
+| Mean IQR, static | 5.2 m | **1.7 m** | 3.1× [2.5, 3.9] |
+| Mean IQR, hand-held | 4.4 m | **1.8 m** | 2.5× [1.9, 3.5] |
+| Worst single marker, static | **+29.7 m** (at 240 m) | +3.2 m (at 240 m) | |
 
 Each cell aggregates ten per-marker values, where a marker's value is the median (or IQR)
 of the SUCCESS rows recorded at it, after discarding the first 5 s at each marker
@@ -103,6 +127,12 @@ markers (10,000 resamples, fixed seed); the MAE ratio is paired by marker. Per-m
 tables are in
 [`data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`](data/analysis/2026-08-22_GMATownship_day2_tables_discard5s.md);
 intervals in [`data/analysis/uncertainty.md`](data/analysis/uncertainty.md).
+"Offset removed" corrects each tier by the mean signed error of the *other* tier at the
+same bandwidth, so the offset is not fitted to the markers it corrects; the bootstrap
+re-estimates it in every resample. With the offset removed, the hand-held ratio's
+interval includes parity: these data do not resolve an accuracy difference there, while
+the spread stayed wider at 406.25 kHz in both tiers. Values and intervals:
+[`data/analysis/review_followup.md`](data/analysis/review_followup.md).
 
 The 406.25 kHz error is **directional, not noisy** — distances came back too long at nine
 of ten markers when static, and at ten of ten when hand-held. No slope against distance
@@ -115,19 +145,21 @@ term, and these data cannot separate them.
 
 ![Effect of a hand-held endpoint](data/analysis/figures/motion_effect_discard5s.png)
 
-At 1625 kHz, mean absolute error was **1.6 m with both endpoints on tripods and 1.7 m with
+At 1625 kHz, mean absolute error was **1.6 m with both endpoints static and 1.7 m with
 one hand-held**. At 406.25 kHz it rose from 11.1 to 12.1 m. The two tiers also differ in
 boot mode, sweep direction and time of recording, so a difference between them is not
 attributable to hand-holding alone.
 
-**What "hand-held" means here, precisely.** The Responder rides on a pole that the
-operator holds upright on each cone mark, standing to one side; between cones the
-operator walks to the next one (a stop-and-go procedure). The analysed readings come from
-the ~70 s dwell at each cone, not from the walk. This is a result about a hand-held
-endpoint that is stationary during each measurement window, compared with a tripod one.
-It says nothing about ranging in motion.
+**What "hand-held" means here, precisely.** The Initiator sits in a phone clamp on its
+1.5 m tripod, which the operator carries upright and holds on each cone mark, standing
+behind it on the side away from the Responder; the Responder stays at the reference
+position. Between cones the operator walks to the next one (a stop-and-go procedure).
+The main comparison uses the ~70 s dwell at each cone, where the hand-held endpoint is
+stationary. The walks between cones are analysed separately against a constant-pace
+reference: 1625 kHz stayed ahead, with a mean absolute error of 3.9 m against 13.0 m.
+See [`data/analysis/c2_walking.md`](data/analysis/c2_walking.md).
 
-Dwell windows come from the operator arrival log rather than being inferred from the data.
+Dwell windows come from the operator's stopwatch lap log rather than being inferred from the data.
 Where that log disagrees with the QC tool's nearest-marker heuristic — two of ten markers
 at 406.25 kHz — the lap-window recomputation supersedes the tool, and the tool's own
 report is left as generated so the disagreement stays visible.
@@ -156,10 +188,13 @@ reply costs was not measured, because neither campaign outing recorded a timeout
 
 ### Practical reading of this session
 
-1625 kHz was better on every axis measured: mean absolute error 6.8× lower static and
-7.2× lower hand-held (intervals above), mean IQR 1.7 m against 5.2 m static and 1.8 m
-against 4.4 m hand-held, and a cycle 4.7 % shorter. Reach was not the trade-off within
-300 m: neither bandwidth lost the link. A separate pilot outing at 1625 kHz was still
+Out of the box, 1625 kHz was more accurate (mean absolute error 6.8× lower static and
+7.2× lower hand-held), more precise (spread 3.1× and 2.5× narrower) and 4.7 % faster per
+cycle. Most of the 406.25 kHz error was an offset: with it removed, 406.25 kHz was still
+less accurate static, the hand-held difference is not resolved, and its spread stayed
+wider in both tiers. A deployment that needs the narrow setting at longer range would
+have to remove that offset; whether a one-time per-device calibration does so is the
+next test. Reach was not the trade-off within 300 m: neither bandwidth lost the link. A separate pilot outing at 1625 kHz was still
 ranging at a **365 m** median when the ground ran out — though that outing was never
 surveyed, so no accuracy figure can be read from it. These are single-session results.
 
@@ -185,9 +220,8 @@ one endpoint hand-held. This repository does so, out of the box, on commodity ha
 with the raw data published, alongside an open platform for peer-to-peer ranging on
 off-the-shelf boards.
 
-The static tier is **not new**. It is a replication of Wolf et al. on off-the-shelf parts
-(at SF8 rather than SF10), and is reported as replication. No new per-exchange radio
-effect is claimed.
+The static tier is **not new**: its result is consistent with the static comparison of
+Wolf et al., here on off-the-shelf parts at SF8 rather than SF10.
 
 ---
 
@@ -197,22 +231,22 @@ A short, honest list. The full version is in [`data/README.md`](data/README.md) 
 per-session logs.
 
 - **One matched session carries the comparison.** The 406.25-vs-1625 kHz result rests on
-  22 August alone. A second session at 1625 kHz only (15 August, same road marks) is not
-  contribution-grade: no arrival log for its hand-held run, attempt counts below the
-  80-attempt floor, and the 300 m static marker missed and an off-set 330 m cone recorded
-  instead. Its static per-marker signed errors differ from those of 22 August by up to
-  9.0 m. It is held back pending an operator check of the 15 August set-up, so
-  repeatability across days is not established.
+  22 August alone. An earlier 1625 kHz-only session on 15 August, at the same road
+  marks, is exploratory validation data, released but not analysed, so repeatability
+  across days is not established.
 - **Ground truth is bounded at about ±0.5 m at 300 m.** The class III tape allows
   ±12.6 mm per 30 m segment, and the same segment was reused ten times, so ±126 mm at
   300 m. With the lateral, mark-transfer and puck-centring terms (operator upper-bound
-  estimates), the bound at 300 m is −448 / +281 mm with both endpoints on tripods and
-  −411 / +245 mm with one hand-held; the hand-held figure omits the placement of the
+  estimates), the bound at 300 m is −448 / +281 mm with both endpoints static and
+  −411 / +244 mm with one hand-held; the hand-held figure omits the placement of the
   hand-held end, which was not estimated. Cone-position error is shared by both
   bandwidths. Derivation: [`docs/ground_truth_tolerance.md`](docs/ground_truth_tolerance.md).
-- **Some set-up details rest on statements after the fact.** The 1.5 m mount height was
-  reported by the operator after the campaign; the antenna orientation on the tripods and
-  the mount type were not recorded; no site photographs were taken on 22 August.
+- **Retakes were decided in the field.** The operator chose which disturbed files to
+  record again and could see the Initiator's display of its latest reading. At
+  406.25 kHz most disturbed static markers were recorded again; at 1625 kHz every
+  annotated file was kept, which works against 1625 kHz in the comparison.
+- **The tripod height is in the field diary only.** It was measured on site and recorded
+  in a field diary that is not in this repository.
 - **Out of the box only.** Every figure uses RadioLib 7.6.0's default calibration
   constants and no per-device calibration. Ranging is single-direction and
   frequency-uncorrected, without role-swapped or multi-exchange averaging, so the figures
@@ -220,12 +254,18 @@ per-session logs.
 - **The 240 m cone stands out at both bandwidths.** +29.7 m at 406.25 kHz static against
   +3.2 m at 1625 kHz, beside a recorded structure; at 1625 kHz its IQR was the widest of
   the ten markers in both tiers (2.8 m and 3.3 m). Other markers stand out by other
-  criteria (the widest 406.25 kHz IQRs were at 180 m and 210 m). These are recorded as
-  observations and not interpreted; re-measurement is future work.
+  criteria (the widest 406.25 kHz IQRs were at 180 m and 210 m). On 22 August the
+  operator tied back shrubs near the house at 240 to 250 m to clear the line of sight,
+  with conditions the same for both bandwidths. These are recorded as observations and
+  not interpreted; re-measurement is future work.
 - **The pilot outing has no ground truth at all.** Its 365 m reach is a range
   demonstration; positions were paced, not surveyed. No accuracy figure is derivable
   from it.
-- **Nothing here speaks to continuous motion.** See result 2 above.
+- **Motion is measured only against a constant-pace reference.** The walks between
+  cones have no ground truth of their own: the true distance along each walk is
+  interpolated from the lap times at its ends, and the 1625 kHz readings are consistent
+  with a pace that was not constant. See result 2 above and
+  [`data/analysis/c2_walking.md`](data/analysis/c2_walking.md).
 
 ---
 
@@ -253,11 +293,17 @@ python tools/c4_failure_modes.py
 python tools/dwell_table.py
 python tools/uncertainty.py
 python tools/rssi_disturbance.py
+python tools/c2_walking.py
+python tools/review_followup.py
 python tools/make_readme_figures.py
+python tools/make_latex_tables.py
 ```
 
 These regenerate the committed files under `data/analysis/` exactly.
-`tools/make_latex_tables.py` writes the preprint's LaTeX tables from the same outputs.
+`tools/make_readme_figures.py` also writes the preprint's per-marker figure
+(`*_paper.png`), `tools/c2_walking.py` its walking figure, and
+`tools/make_latex_tables.py` the preprint's LaTeX tables (into `paper/tables/`) from the
+same outputs.
 
 ---
 
@@ -267,10 +313,10 @@ These regenerate the committed files under `data/analysis/` exactly.
 
 | Component | Part |
 |---|---|
-| MCU + radio + display | LILYGO T3-S3 V1.2 — ESP32-S3 + Semtech SX1280, *Without PA* (H594), onboard SSD1306 OLED × 2 |
+| MCU + radio + display | LILYGO T3-S3 V1.2: ESP32-S3 + Semtech SX1280, the variant without a power amplifier (H594), onboard SSD1306 OLED, × 2 |
 | Antenna | the 2.4 GHz SMA stub antenna supplied with the board, finger-tight |
-| Power | USB-C — laptop, wall adapter or power bank |
-| Mounts (measurement) | 1.5 m camera tripods; a pole for the hand-held endpoint |
+| Power | USB-C; in the campaign, one USB-C power bank per puck |
+| Mounts (measurement) | a phone clamp on a 1.5 m camera tripod per puck; the Initiator's tripod is carried upright in the hand-held tier |
 | Ground truth | Freemans Grey Magic 30 m fibreglass tape, class III |
 | Demonstration only | WS2812B 16-LED ring on GPIO 38, for the colour-band demonstration build; not used for any data in this repository |
 
@@ -279,9 +325,20 @@ drives the exchange; the other answers.
 
 ### Toolchain
 
-Arduino IDE 2.x with ESP32 board support, plus **RadioLib** (Jan Gromeš; the campaign data
-used 7.6.0) and **U8g2** (OLED) from the Library Manager. **FastLED** (Daniel Garcia) is
-needed only for the LED-ring demonstration build.
+| Component | Version |
+|---|---|
+| Arduino IDE | 2.3.8 |
+| arduino-esp32 board package (Espressif) | 3.3.5 |
+| RadioLib (Jan Gromeš) | 7.6.0 |
+| U8g2 (oliver) | 2.35.30 |
+| Python (analysis scripts) | 3.14.5 |
+| matplotlib | 3.11.1 |
+
+The campaign firmware was built against arduino-esp32 3.3.5 and RadioLib 7.6.0; the
+Arduino IDE, U8g2, Python and matplotlib versions are those of the machine the analysis
+was regenerated on. The analysis scripts need only the Python standard library and
+matplotlib. **FastLED** (Daniel Garcia) is needed only for the LED-ring demonstration
+build.
 
 ### Flash
 
@@ -343,8 +400,8 @@ firmware/   Arduino sketches by phase — 01_blink, 02_radio_comms, 03_ranging
 tools/      offload.py + validate_csv.py   flash -> verified CSV
             qc_session.py                  per-session QC reports and figures
             per_marker_tables.py, aggregates.py, c3_filters.py, c4_failure_modes.py,
-            dwell_table.py, uncertainty.py, rssi_disturbance.py
-                                           post-discard analysis behind the preprint
+            dwell_table.py, uncertainty.py, rssi_disturbance.py, c2_walking.py,
+            review_followup.py             post-discard analysis behind the preprint
             make_readme_figures.py         the cross-bandwidth figures above
             make_latex_tables.py           the preprint's LaTeX tables
 data/
@@ -352,6 +409,8 @@ data/
   analysis/              generated QC reports, per-marker tables, analyses, figures
 docs/FSD.md              functional specification — requirements, interfaces, schemas
 docs/ground_truth_tolerance.md   ground-truth bound derivation
+LICENSE                  MIT, for firmware/ and tools/
+LICENSE-DATA             CC BY 4.0, for data/, docs/ and the README files
 ```
 
 ---
@@ -363,8 +422,7 @@ offload / validation / QC pipeline, the post-discard analysis scripts, and three
 completed field outings across two sites.
 
 **Next:** a second matched session with the sweep order reversed, so the bandwidth
-comparison rests on more than one day; the operator check of the 15 August set-up;
-re-measuring the 240 m marker at both bandwidths with site photographs; and a per-device
+comparison rests on more than one day; re-measuring the 240 m marker at both bandwidths with site photographs; and a per-device
 delay calibration at each bandwidth.
 
 **Paper:** a Part 1 preprint covering the platform and this characterisation is in
@@ -400,5 +458,8 @@ issue on this repository.
 
 ## License
 
-Not yet set. The firmware, tools and datasets here are published for inspection and
-replication; a formal licence will be attached before the preprint goes live.
+- **Code** (`firmware/`, `tools/`): MIT License, see [`LICENSE`](LICENSE).
+- **Data and documentation** (`data/`, `docs/`, and the README files): Creative Commons
+  Attribution 4.0 International (CC BY 4.0), see [`LICENSE-DATA`](LICENSE-DATA).
+
+Copyright © 2026 Ishan Raonka.

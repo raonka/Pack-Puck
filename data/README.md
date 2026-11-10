@@ -77,6 +77,9 @@ Identical on both devices, unchanged during every session below.
 | WiFi / Bluetooth | disabled at boot, self-reported in the boot banner |
 | Initiator board ID | `0x541BBDD4DB1C` |
 | Responder board ID | `0x5CD85EDB5110` |
+| Mount | each puck in a phone clamp on a 1.5 m camera tripod, antennas vertical, the pucks facing each other |
+| Power | one USB-C power bank per puck |
+| Roles | the Responder stays at the reference position; the Initiator is the puck moved to each marker |
 
 **Measured ranging cadence** — the duration of the whole firmware loop (the blocking
 RadioLib `range()` call, the log write and the OLED refresh), with no software pacing:
@@ -88,7 +91,7 @@ RadioLib `range()` call, the log write and the OLED refresh), with no software p
 
 On 22 August, the 4× narrower bandwidth lengthened each cycle by only ≈ 31 ms (+4.7 %):
 most of the cycle is bandwidth-independent loop time, which was not broken down
-further. Both GMA township outings recorded **zero timeouts**, so what a cycle with no
+further. The 22 August session recorded **zero timeouts**, so what a cycle with no
 response costs was not measured.
 
 ---
@@ -114,7 +117,7 @@ Each session directory holds:
 | `*.session.txt` | the session log — setup, deviations, file dispositions, open items |
 | `environment/` | weather screenshots for the outing |
 | `field_notes-*.txt` | notes written in the field |
-| `stopwatch_laps_data_*.csv` | operator arrival logs (stop-and-go runs only) |
+| `stopwatch_laps_data_*.csv` | operator stopwatch lap logs (stop-and-go runs only) |
 
 ---
 
@@ -133,11 +136,14 @@ Both bandwidths, both tiers, ten cones at 30 m spacing from 30–300 m. Sweep or
 | 1625 kHz static | `raw/20260822_174415-Initiator/` | 10 of 11 | PASS |
 | 1625 kHz stop-and-go | same | 1 of 11 | PASS |
 
-In the stop-and-go runs (the hand-held tier) the Responder rides on a pole the operator
-holds upright on each cone mark, stationary for a ~70 s dwell, and is walked between
-cones. Both runs carry **operator arrival logs** (`stopwatch_laps_data_*.csv`): phone
-stopwatch laps pressed at the end of each dwell and of each walk, giving directly
-attributed ground truth rather than an inferred plateau. This is the strongest ground
+In the stop-and-go runs (the hand-held tier) the operator carries the Initiator's tripod
+upright, with its power bank in a pocket, holds it on each cone mark for a ~70 s dwell,
+standing behind it on the side away from the Responder, and walks it between cones; the
+Responder stays at the reference position. Both runs carry **operator stopwatch lap
+logs** (`stopwatch_laps_data_*.csv`): phone stopwatch laps pressed at the end of each
+dwell and of each walk, giving directly attributed ground truth rather than an inferred
+plateau. The walks between cones are analysed against a constant-pace reference in
+`analysis/c2_walking.md`. This is the strongest ground
 truth in the dataset. Note that `qc_session.py`'s nearest-marker heuristic disagrees
 with the lap log on two of ten markers at 406.25 kHz; where they disagree, the per-marker
 tables recompute on the lap windows and **supersede the tool's stop-and-go numbers**.
@@ -173,16 +179,8 @@ cones. Static sweep and a hand-held stop-and-go run, both at 1625 kHz.
   Retained so the reindexing trap is visible rather than silently discarded; see the
   session log, item T6, for the full diagnosis.
 
-*Known limitations* — recorded in the session log, not corrected after the fact:
-attempt counts fall below the 80-attempt analysis floor after the 5 s discard at most
-markers; there is no operator arrival log for the stop-and-go run; the static run missed
-the 300 m cone and recorded an off-set 330 m cone instead; per-file operator metadata
-was not written; humidity was not captured. **This session is not contribution-grade.**
-
-Its static per-marker signed errors at 1625 kHz differ from those of 22 August by
-−9.0 m to +5.9 m (`analysis/2026-08-22_GMATownship_day2_tables_discard5s.md`, TABLE 5).
-It is held back from the reported results pending an operator check of the 15 August
-set-up, so day-to-day repeatability is not established.
+This session is **exploratory validation data, released but not analysed**, so
+day-to-day repeatability is not established.
 
 ### 2026-07-13 — Parade Ground pilot *(not campaign data)*
 
@@ -254,21 +252,22 @@ repeats in every segment and accumulates linearly; ±126 mm supersedes the singl
 That is the instrument term only. The total bound adds lateral zigzag of the line,
 graduation-to-mark transfer and puck centring, all as operator upper-bound estimates
 (sag excluded: the tape lay flat on concrete; stretch treated as within the class
-tolerance). At 300 m the bound is **−448 / +281 mm** with both endpoints on tripods and
-**−411 / +245 mm** with one hand-held; the hand-held figure omits the placement of the
+tolerance). At 300 m the bound is **−448 / +281 mm** with both endpoints static and
+**−411 / +244 mm** with one hand-held; the hand-held figure omits the placement of the
 hand-held end, which was not estimated. The 22 August cones were placed on road marks
 from the 15 August survey, so cone-position error is common to both sessions and both
 bandwidths. Full derivation: [`docs/ground_truth_tolerance.md`](../docs/ground_truth_tolerance.md).
 
-**2. The 240 m marker deviates on both outings, and bandwidth-dependently.**
+**2. The 240 m marker stands out at both bandwidths.**
 
-| Outing | Bandwidth | Observation (after the 5 s discard) |
-|---|---|---|
-| 15 Aug | 1625 kHz | IQR 5.8 m static / 4.5 m stop-and-go, vs 1.0–2.5 m at the other on-set markers |
-| 22 Aug | 406.25 kHz | signed error **+29.7 m** static, +15.3 m stop-and-go |
-| 22 Aug | 1625 kHz | signed error **+3.2 m** static, +0.6 m stop-and-go; IQR 2.8 / 3.3 m, the widest of the ten markers in each tier |
+| Bandwidth | Observation on 22 August (after the 5 s discard) |
+|---|---|
+| 406.25 kHz | signed error **+29.7 m** static, +15.3 m stop-and-go |
+| 1625 kHz | signed error **+3.2 m** static, +0.6 m stop-and-go; IQR 2.8 / 3.3 m, the widest of the ten markers in each tier |
 
-A structure stands near the cone. Other markers stand out by other criteria (the widest
+A structure stands near the cone. On 22 August the operator tied back shrubs near the
+house at 240 to 250 m to clear the line of sight, with conditions the same for both
+bandwidths. Other markers stand out by other criteria (the widest
 406.25 kHz IQRs on 22 August were at 180 m and 210 m). The deviation is **recorded as
 an observation, not claimed as a result, and not interpreted**. A targeted
 re-measurement at both bandwidths, with site photographs, is future work.
