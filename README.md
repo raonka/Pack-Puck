@@ -84,7 +84,7 @@ SX1280 LoRa Ranging and a Field Comparison of Its Bandwidth Extremes*, covers th
 platform and this characterisation; its arXiv identifier will be added here. The full
 experimental protocol (`Methodology.md`) is available on request.
 
-To cite this repository (firmware, tools and data, release `v1.0-preprint`):
+To cite this repository (firmware, tools and data, release `v1.0.1-preprint`):
 
 ```bibtex
 @misc{raonka2026packpucks,
@@ -92,13 +92,13 @@ To cite this repository (firmware, tools and data, release `v1.0-preprint`):
   title  = {Pack Pucks: An Open, Reproducible Platform for Peer-to-Peer {SX1280}
             {LoRa} Ranging and a Field Comparison of Its Bandwidth Extremes},
   year   = {2026},
-  note   = {Firmware, tools and data, release v1.0-preprint},
+  note   = {Firmware, tools and data, release v1.0.1-preprint},
   url    = {https://github.com/raonka/Pack-Puck},
-  doi    = {10.5281/zenodo.24112951}
+  doi    = {10.5281/zenodo.24120237}
 }
 ```
 
-Archived on Zenodo (release `v1.0-preprint`): DOI [10.5281/zenodo.24112951](https://doi.org/10.5281/zenodo.24112951).
+Archived on Zenodo (release `v1.0.1-preprint`): DOI [10.5281/zenodo.24120237](https://doi.org/10.5281/zenodo.24120237).
 
 ---
 
